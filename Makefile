@@ -21,7 +21,7 @@ dep:
 
 .PHONY: clean
 clean::
-	@rm -f $(OBJS) $(OLIB) driver.exe main.o main.d
+	@rm -f $(OBJS) $(OLIB) driver.exe main.o
 
 $(OBJS): obj/%.o: %.cpp
 	@$(CXXBUILD)
