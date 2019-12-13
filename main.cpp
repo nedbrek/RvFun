@@ -1,6 +1,87 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <vector>
+#include <cstring>
+
+/// Interface to Architected Memory
+class ArchMem
+{
+public:
+	virtual uint64_t readMem(uint64_t va, uint32_t sz) const = 0;
+	virtual void    writeMem(uint64_t va, uint32_t sz, uint64_t val) = 0;
+};
+
+/// Sparse array implementation of Architected Memory
+class SparseMem : public ArchMem
+{
+public:
+	SparseMem()
+	{
+	}
+
+	void addBlock(uint64_t va, uint32_t sz, const void *data)
+	{
+		// TODO - check for overlap
+		blocks_.emplace_back(new MemBlock(va, sz, data));
+	}
+
+	uint64_t readMem(uint64_t va, uint32_t sz) const override
+	{
+		uint64_t ret = 0;
+
+		for (const auto &b : blocks_)
+		{
+			const uint64_t block_end = b->va + b->sz;
+			// if block starts to the left, and ends past the beginning
+			if (b->va <= va && block_end > va)
+			{
+				// if block covers all of access
+				if (va + sz <= block_end)
+				{
+					const uint64_t offset = va - b->va;
+					memcpy(&ret, b->mem + offset, sz);
+					return ret;
+				}
+				//else
+				std::cerr << "Cross block access" << std::endl; // TODO - handle
+			}
+		}
+
+		std::cerr << "Access outside of allocated memory: "
+		    << std::hex << va << ' ' << sz << std::endl;
+
+		return ret;
+	}
+
+	void writeMem(uint64_t va, uint32_t sz, uint64_t val) override
+	{
+		// TODO
+	}
+
+private:
+	struct MemBlock
+	{
+		uint64_t va;
+		uint32_t sz;
+		uint8_t *mem;
+
+		MemBlock(uint64_t a, uint32_t s, const void *data)
+		: va(a)
+		, sz(s)
+		{
+			mem = reinterpret_cast<uint8_t*>(malloc(sz));
+			if (data)
+				memcpy(mem, data, sz);
+		}
+
+		~MemBlock()
+		{
+			free(mem);
+		}
+	};
+	std::vector<MemBlock*> blocks_;
+};
 
 /// Interface to Architected State
 class ArchState
@@ -248,6 +329,7 @@ Inst* decode32(uint32_t opc)
 
 int main(int argc, char **argv)
 {
+	SparseMem mem;
 	SimpleArchState state;
 
 	// li a1, -4
@@ -256,14 +338,16 @@ int main(int argc, char **argv)
 	const uint16_t opcodes[] = {
 		0x55f1,
 		0x4605,
-		0x9e2d
+		0x9e2d,
+		0
 	};
-	uint32_t opcodes_sz = 6;
+	uint32_t opcodes_sz = 8;
+	mem.addBlock(0, 8, &opcodes[0]);
 
 	for (; state.getPc() < opcodes_sz;)
 	{
 		const uint64_t pc = state.getPc();
-		const uint16_t opc = opcodes[pc >> 1];
+		const uint16_t opc = mem.readMem(pc, 2);
 		uint32_t opc_sz = 2;
 
 		uint32_t full_inst = opc;
@@ -272,7 +356,7 @@ int main(int argc, char **argv)
 		{
 			// 32 bit instruction
 			opc_sz = 4;
-			full_inst |= opcodes[(pc+2) >> 1] << 16;
+			full_inst |= mem.readMem(pc + 2, 2) << 16;
 
 			inst = decode32(full_inst);
 		}
@@ -286,7 +370,7 @@ int main(int argc, char **argv)
 
 		if (!inst)
 		{
-			std::cout << "(null inst)";
+			std::cout << "(null inst)(" << std::hex << full_inst << std::dec << ')';
 			state.incPc(opc_sz);
 		}
 		else
@@ -298,6 +382,7 @@ int main(int argc, char **argv)
 		std::cout << std::endl;
 	}
 
+	// dump architected state
 	std::cout << std::endl << "Architected State" << std::endl;
 	for (uint32_t i = 0; i < 32;)
 	{
