@@ -3,10 +3,10 @@ CXXFLAGS += -std=c++11 -MP -MMD -Wall -g -O3
 #LDFLAGS +=
 CXXBUILD = $(CXX) $(CXXFLAGS) -MF $(patsubst %.cpp,dep/%.d,$<) -c -o $@ $<
 
-#OBJ := 
+OBJ := sparse_mem.o
 
-#DEP  := $(addprefix dep/,$(OBJ:.o=.d))
-#OBJS := $(addprefix obj/,$(OBJ))
+DEP  := $(addprefix dep/,$(OBJ:.o=.d))
+OBJS := $(addprefix obj/,$(OBJ))
 
 ### targets
 all: dep obj
@@ -26,6 +26,6 @@ clean::
 $(OBJS): obj/%.o: %.cpp
 	@$(CXXBUILD)
 
-driver.exe: main.o
+driver.exe: main.o $(OBJS)
 	@$(CXX) -o $@ $^
 
