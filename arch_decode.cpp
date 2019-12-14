@@ -183,8 +183,122 @@ Inst* decode16(uint32_t opc)
 	return nullptr;
 }
 
+/// Jump and Link (imm)
+class Jal : public Inst
+{
+public:
+	Jal(int64_t imm, uint8_t rd)
+	: imm_(imm)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t pc = state.getPc();
+		state.setReg(rd_, pc + 4);
+		state.incPc(imm_);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "JAL r" << uint32_t(rd_) << ", " << imm_;
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+	uint8_t rd_;
+};
+
+class Jalr : public Inst
+{
+public:
+
+private:
+};
+
+class Branch : public Inst
+{
+public:
+
+private:
+};
+
 Inst* decode32(uint32_t opc)
 {
+	// opc[1:0] == 2'b11
+	const uint32_t group = opc & 0x7c; // opc[6:2]
+	switch (group)
+	{
+	case   0: // load
+	case   4: // load FP
+	case  32: // store
+	case  36: // store FP
+	case  12: // misc MEM
+		return nullptr; // TODO Mem
+
+	case  16: // op imm
+	case  24: // op imm32
+	case  48: // op
+	case  56: // op32
+	case  20: // AUIPC
+	case  52: // LUI
+		return nullptr; // TODO int
+
+	case  64: // MADD
+	case  68: // MSUB
+	case  72: // NMSUB
+	case  76: // NMADD
+	case  80: // fp op
+		return nullptr; // TODO FP
+
+	case  96: // branch
+	{
+		//return new Branch();
+		return nullptr; // TODO
+	}
+
+	case 100: // JALR
+	{
+		//return new Jalr;
+		return nullptr; // TODO
+	}
+
+	case 108: // JAL
+	{
+		uint64_t imm = 0; // imm[0] = 0
+		const uint32_t opc30_21 = (opc >> 21) & 0x3ff; // opc[30:21] -> imm[10:1]
+		imm |= opc30_21 << 1;
+		imm |= ((opc >> 20) & 1) << 11; // opc[20] -> imm[11]
+		const uint32_t opc19_12 = (opc >> 12) & 0xff; // opc[19:12] -> imm[19:12]
+		imm |= opc19_12 << 12;
+		if ((opc >> 31) & 1) // opc[31] sign bit
+			imm |= 0xfffffffffff00000;
+
+		const uint8_t rd = (opc >> 7) & 0x1f; //opc[11:7]
+		return new Jal(imm, rd);
+	}
+
+	case  44: // AMO (atomics)
+	case 112: // system
+		return nullptr; // TODO
+
+	case   8: // custom0
+	case  40: // custom1
+	case  88: // custom2
+	case 120: // custom3
+	case  28: // >32 bit opcode
+	case  60: // >32 bit opcode
+	case  92: // >32 bit opcode
+	case 124: // >32 bit opcode
+	case  84: // (rsvd)
+	case 104: // (rsvd)
+	case 116: // (rsvd)
+		return nullptr; // TODO InvalidOp
+	}
+
 	return nullptr;
 }
 
