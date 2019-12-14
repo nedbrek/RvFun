@@ -183,6 +183,40 @@ Inst* decode16(uint32_t opc)
 	return nullptr;
 }
 
+/// Add Upper Immediate to PC
+class Auipc : public Inst
+{
+public:
+	Auipc(int32_t imm, uint8_t rd)
+	: imm_(imm)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t pc = state.getPc();
+		state.setReg(rd_, pc + imm_);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "AUIPC r" << uint32_t(rd_) << " = PC " << std::hex;
+		if (imm_ < 0)
+			os << '-' << ' ' << -imm_;
+		else
+			os << '+' << ' ' << imm_;
+
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+	uint8_t rd_;
+};
+
 /// Jump and Link (imm)
 class Jal : public Inst
 {
@@ -230,6 +264,8 @@ Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
 	const uint32_t group = opc & 0x7c; // opc[6:2]
+	const uint8_t rd = (opc >> 7) & 0x1f; //opc[11:7]
+
 	switch (group)
 	{
 	case   0: // load
@@ -239,11 +275,16 @@ Inst* decode32(uint32_t opc)
 	case  12: // misc MEM
 		return nullptr; // TODO Mem
 
+	case  20: // AUIPC
+	{
+		const uint32_t imm = opc & 0xfffff000; // opc[31:12]
+		return new Auipc(imm, rd);
+	}
+
 	case  16: // op imm
 	case  24: // op imm32
 	case  48: // op
 	case  56: // op32
-	case  20: // AUIPC
 	case  52: // LUI
 		return nullptr; // TODO int
 
@@ -277,7 +318,6 @@ Inst* decode32(uint32_t opc)
 		if ((opc >> 31) & 1) // opc[31] sign bit
 			imm |= 0xfffffffffff00000;
 
-		const uint8_t rd = (opc >> 7) & 0x1f; //opc[11:7]
 		return new Jal(imm, rd);
 	}
 
