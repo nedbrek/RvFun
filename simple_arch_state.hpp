@@ -35,6 +35,12 @@ public:
 		return pc_;
 	}
 
+	// for initialization
+	void setPc(uint64_t pc)
+	{
+		pc_ = pc;
+	}
+
 private:
 	static constexpr uint32_t NUM_REGS = 32;
 	uint64_t pc_ = 0;
