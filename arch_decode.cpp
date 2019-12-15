@@ -260,6 +260,101 @@ public:
 private:
 };
 
+class OpImm : public Inst
+{
+public:
+	OpImm(uint8_t op, int16_t imm, uint8_t r1, uint8_t rd)
+	: op_(op)
+	, imm_(imm)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		uint64_t val = state.getReg(r1_);
+
+		// signed/unsigned versions
+		const int64_t ival = int64_t(val);
+		const uint64_t uimm = uint64_t(imm_);
+
+		switch (op_)
+		{
+		case 0: val  += imm_; break; // ADDI
+		case 1: val <<= imm_; break; // SLLI
+		case 4: val  ^= imm_; break; // XORI
+		case 6: val  |= imm_; break; // ORI
+		case 7: val  &= imm_; break; // ANDI
+
+		case 2: val = (ival < imm_) ? 1 : 0; break; // SLTI
+		case 3: val = (val < uimm) ? 1 : 0; break; // SLTIU
+
+		case 5: // SRLI, SRAI
+		{
+			const uint8_t sft = imm_ & 0x3f;
+			const bool arith = (imm_ & 0x400) != 0;
+			if (arith)
+				val = ival >> sft;
+			else
+				val >>= sft;
+
+			break;
+		}
+		}
+
+		state.setReg(rd_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		int64_t imm = imm_;
+
+		const char *op;
+		switch (op_)
+		{
+		case 0: os << "ADDI"; op = "+"; break;
+		case 1: os << "SLLI"; op = "<<"; break;
+		case 4: os << "XORI"; op = "^"; break;
+		case 6: os << " ORI"; op = "|"; break;
+		case 7: os << "ANDI"; op = "&"; break;
+
+		case 2: os << "SLTI "; op = "<i"; break;
+		case 3: os << "SLTIU"; op = "<u"; break;
+
+		case 5: // SRLI, SRAI
+		{
+			imm &= 0x3f;
+			const bool arith = (imm_ & 0x400) != 0;
+			if (arith)
+			{
+				os << "SRAI";
+				op = ">>i";
+			}
+			else
+			{
+				os << "SRLI";
+				op = ">>u";
+			}
+
+			break;
+		}
+		}
+
+		os << ' ' << 'r' << uint32_t(rd_) << " = r" << uint32_t(r1_) << ' ' << op << ' ' << imm;
+
+		return os.str();
+	}
+
+private:
+	uint8_t op_;
+	int64_t imm_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -282,6 +377,15 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case  16: // op imm
+	{
+		const uint8_t op = (opc >> 12) & 7; // opc[14:12]
+		const uint8_t r1 = (opc >> 15) & 0x1f; // opc[19:15]
+		uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
+		if (imm & 0x800)
+			imm |= 0xf000; // sign ex
+		return new OpImm(op, imm, r1, rd);
+	}
+
 	case  24: // op imm32
 	case  48: // op
 	case  56: // op32
