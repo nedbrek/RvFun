@@ -5,14 +5,15 @@
 
 namespace rvfun
 {
+class ArchMem;
 
 /// Simple Implementation of ArchState
 class SimpleArchState : public ArchState
 {
 public:
-	SimpleArchState()
-	{
-	}
+	SimpleArchState();
+
+	void setMem(ArchMem *mem) { mem_ = mem; }
 
 	uint64_t getReg(uint32_t num) const override
 	{
@@ -24,6 +25,9 @@ public:
 		if (num != 0)
 			ireg[num] = val;
 	}
+
+	uint64_t readMem(uint64_t va, uint32_t sz) const override;
+	void writeMem(uint64_t va, uint32_t sz, uint64_t val) override;
 
 	void incPc(int64_t delta) override
 	{
@@ -44,7 +48,7 @@ private:
 	static constexpr uint32_t NUM_REGS = 32;
 	uint64_t pc_ = 0;
 	uint64_t ireg[NUM_REGS] = {0,};
-	// TODO memory
+	ArchMem *mem_ = nullptr;
 };
 
 }

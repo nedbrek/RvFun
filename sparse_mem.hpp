@@ -12,7 +12,7 @@ class SparseMem : public ArchMem
 public:
 	SparseMem();
 
-	void addBlock(uint64_t va, uint32_t sz, const void *data);
+	void addBlock(uint64_t va, uint32_t sz, const void *data = nullptr);
 
 	uint64_t readMem(uint64_t va, uint32_t sz) const override;
 

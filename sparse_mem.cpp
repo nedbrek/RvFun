@@ -14,9 +14,15 @@ struct SparseMem::MemBlock
 	: va(a)
 	, sz(s)
 	{
-		mem = reinterpret_cast<uint8_t*>(malloc(sz));
 		if (data)
+		{
+			mem = reinterpret_cast<uint8_t*>(malloc(sz));
 			memcpy(mem, data, sz);
+		}
+		else
+		{
+			mem = reinterpret_cast<uint8_t*>(calloc(sz, 1));
+		}
 	}
 
 	~MemBlock()

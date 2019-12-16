@@ -98,6 +98,13 @@ int main(int argc, char **argv)
 	}
 
 	SimpleArchState state;
+	state.setMem(&mem);
+
+	// allocate SP
+	const uint64_t sp = 0x10000000;
+	mem.addBlock(sp, 32*1024);
+
+	state.setReg(Reg::SP, sp);
 
 	// set entry point
 	state.setPc(eh64->e_entry);
