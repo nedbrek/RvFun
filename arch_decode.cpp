@@ -167,6 +167,34 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Move (Reg to Reg)
+class CompMv : public Inst
+{
+public:
+	CompMv(uint8_t rs, uint8_t rd)
+	: rs_(rs)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		state.setReg(rd_, state.getReg(rs_));
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.MV r" << uint32_t(rd_) << " = r" << uint32_t(rs_);
+		return os.str();
+	}
+
+private:
+	uint8_t rs_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -218,6 +246,8 @@ Inst* decode16(uint32_t opc)
 			const uint8_t rs = (opc >> 2) & 0x1f; // opc[6:2]
 			if (rs == 0)
 				return new CompJr(rd);
+			//else
+			return new CompMv(rs, rd);
 		}
 	}
 	return nullptr;
