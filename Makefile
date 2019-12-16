@@ -17,7 +17,7 @@ obj:
 dep:
 	@mkdir $@
 
--include $(DEP)
+-include $(DEP) main.d
 
 .PHONY: clean
 clean::
@@ -27,5 +27,5 @@ $(OBJS): obj/%.o: %.cpp
 	@$(CXXBUILD)
 
 driver.exe: main.o $(OBJS)
-	@$(CXX) -o $@ $^
+	@$(CXX) -g -o $@ $^
 
