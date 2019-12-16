@@ -546,6 +546,34 @@ private:
 	uint8_t rd_;
 };
 
+/// Load Upper Immediate
+class Lui : public Inst
+{
+public:
+	Lui(int64_t imm, uint8_t rd)
+	: imm_(imm)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		state.setReg(rd_, imm_);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "LUI r" << uint32_t(rd_) << " = " << imm_;
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -580,8 +608,13 @@ Inst* decode32(uint32_t opc)
 	case  24: // op imm32
 	case  48: // op
 	case  56: // op32
-	case  52: // LUI
 		return nullptr; // TODO int
+
+	case  52: // LUI
+	{
+		const int32_t imm = opc & 0xfffff000; // opc[31:12]
+		return new Lui(imm, rd);
+	}
 
 	case  64: // MADD
 	case  68: // MSUB
