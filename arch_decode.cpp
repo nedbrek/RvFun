@@ -253,6 +253,33 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Add Scaled Immediate to SP
+class CompAddI16Sp : public Inst
+{
+public:
+	CompAddI16Sp(int64_t imm)
+	: imm_(imm)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t sp = state.getReg(Reg::SP);
+		state.setReg(Reg::SP, sp + imm_);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.ADDI16SP SP += " << imm_;
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -284,6 +311,20 @@ Inst* decode16(uint32_t opc)
 
 			const int8_t imm = raw_bits;
 			return new CompLI(rd, imm);
+		}
+		else if (o15_13 == 0x6000 || o15_13 == 0x7000) // C.LUI, C.ADDI16SP
+		{
+			if (rd == 2)
+			{
+				uint16_t imm = (opc & 0x18) << 4; // opc[4:3] -> imm[8:7]
+				imm |= (opc & 0x20) ? 0x40 : 0; // opc[5] -> imm[6]
+				imm |= (opc &    4) ? 0x20 : 0; // opc[2] -> imm[5]
+				if (opc & 0x1000)
+					imm |= 0xfe00; // sign ex
+				const int16_t s_imm = int16_t(imm);
+				return new CompAddI16Sp(s_imm);
+			}
+			//else
 		}
 		else if (o15_13 == 0x8000)
 		{

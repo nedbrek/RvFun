@@ -101,10 +101,11 @@ int main(int argc, char **argv)
 	state.setMem(&mem);
 
 	// allocate SP
+	const uint32_t stack_sz = 32 * 1024;
 	const uint64_t sp = 0x10000000;
-	mem.addBlock(sp, 32*1024);
+	mem.addBlock(sp, stack_sz);
 
-	state.setReg(Reg::SP, sp);
+	state.setReg(Reg::SP, sp + stack_sz/2); // put SP in the middle
 
 	// set entry point
 	state.setPc(eh64->e_entry);
