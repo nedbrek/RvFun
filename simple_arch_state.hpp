@@ -35,8 +35,7 @@ public:
 		return pc_;
 	}
 
-	// for initialization
-	void setPc(uint64_t pc)
+	void setPc(uint64_t pc) override
 	{
 		pc_ = pc;
 	}

@@ -18,6 +18,7 @@ public:
 
 	/// get PC
 	virtual uint64_t getPc() const = 0;
+	virtual void setPc(uint64_t pc) = 0;
 };
 
 } // namespace

@@ -141,16 +141,42 @@ private:
 	uint8_t rsd_;
 };
 
+/// Compressed Jump to register
+class CompJr : public Inst
+{
+public:
+	CompJr(uint8_t rd)
+	: rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t new_pc = state.getReg(rd_);
+		state.setPc(new_pc);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.JR r" << uint32_t(rd_);
+		return os.str();
+	}
+
+private:
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
-	const uint8_t o10 = opc & 3;
+	const uint8_t o10 = opc & 3; // opc[1:0]
 	if (o10 == 1) // common compressed ops
 	{
 		const uint16_t o15_13 = opc & 0xe000;
 		if (o15_13 == 0x4000)
 		{
 			// TODO check for hint
-			const uint8_t rd = (opc >> 7) & 0x1f;
+			const uint8_t rd = (opc >> 7) & 0x1f; // opc[11:7]
 
 			uint8_t raw_bits = (opc >> 2) & 0x1f; // imm[4:0] = opc[6:2]
 			if (opc & 0x1000)
@@ -178,6 +204,20 @@ Inst* decode16(uint32_t opc)
 					return new CompAlu(fun, rs2, rsd);
 				}
 			}
+		}
+	}
+	else if (o10 == 2) // more ops
+	{
+		const uint16_t o15_12 = opc & 0xf000;
+		if (o15_12 < 0x2000) // C.SLLI
+		{
+		}
+		else if (o15_12 == 0x8000) // C.JR and C.MV
+		{
+			const uint8_t rd = (opc >> 7) & 0x1f; // opc[11:7]
+			const uint8_t rs = (opc >> 2) & 0x1f; // opc[6:2]
+			if (rs == 0)
+				return new CompJr(rd);
 		}
 	}
 	return nullptr;
