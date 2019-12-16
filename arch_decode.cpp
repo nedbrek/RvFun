@@ -224,12 +224,54 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Add Scaled Immediate to SP
+class CompAddI4SpN : public Inst
+{
+public:
+	CompAddI4SpN(uint64_t imm, uint8_t rd)
+	: imm_(imm)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t sp = state.getReg(Reg::SP);
+		state.setReg(rd_, sp + imm_);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.ADDI4SPN r" << uint32_t(rd_) << " = r2+" << imm_;
+		return os.str();
+	}
+
+private:
+	uint64_t imm_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
 	const uint8_t rd = (opc >> 7) & 0x1f; // opc[11:7]
 
-	if (o10 == 1) // common compressed ops
+	if (o10 == 0) // Memory
+	{
+		const uint16_t o15_13 = opc & 0xe000;
+		if (o15_13 == 0) // C.ADDI4SPN
+		{
+			const uint8_t rd = ((opc >> 2) & 7) + 8; // opc[4:2]
+			uint64_t imm = (opc & 0x780) >> 1; // opc[10:7] -> imm[9:6]
+			imm |= (opc & 0x1800) >> 7; // opc[12:11] -> imm[5:4]
+			imm |= (opc & 0x40) ? 4 : 0; // opc[6] -> imm[2]
+			imm |= (opc & 0x20) ? 8 : 0; // opc[5] -> imm[3]
+			return new CompAddI4SpN(imm, rd);
+		}
+	}
+	else if (o10 == 1) // common compressed ops
 	{
 		const uint16_t o15_13 = opc & 0xe000;
 		if (o15_13 == 0x4000)
