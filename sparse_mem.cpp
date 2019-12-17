@@ -71,7 +71,26 @@ uint64_t SparseMem::readMem(uint64_t va, uint32_t sz) const
 
 void SparseMem::writeMem(uint64_t va, uint32_t sz, uint64_t val)
 {
-	// TODO
+	for (const auto &b : blocks_)
+	{
+		const uint64_t block_end = b->va + b->sz;
+		// if block starts to the left, and ends past the beginning
+		if (b->va <= va && block_end > va)
+		{
+			// if block covers all of access
+			if (va + sz <= block_end)
+			{
+				const uint64_t offset = va - b->va;
+				memcpy(b->mem + offset, &val, sz);
+				return;
+			}
+			//else
+			std::cerr << "Cross block access" << std::endl; // TODO - handle
+		}
+	}
+
+	std::cerr << "Write access outside of allocated memory: "
+		 << std::hex << va << ' ' << sz << std::endl;
 }
 
 }

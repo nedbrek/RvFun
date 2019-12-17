@@ -280,10 +280,41 @@ private:
 	int64_t imm_;
 };
 
+/// Compressed Store DWord to Stack Pointer
+class CompSdSp : public Inst
+{
+public:
+	CompSdSp(uint32_t imm, uint8_t rs)
+	: imm_(imm)
+	, rs_(rs)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t sp = state.getReg(Reg::SP);
+		const uint64_t val = state.getReg(rs_);
+		state.writeMem(sp + imm_, 8, val);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.SDSP [SP+" << imm_ << "] = r" << uint32_t(rs_);
+		return os.str();
+	}
+
+private:
+	uint32_t imm_;
+	uint8_t rs_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
 	const uint8_t rd = (opc >> 7) & 0x1f; // opc[11:7]
+	const uint8_t rs = (opc >> 2) & 0x1f; // opc[6:2]
 
 	if (o10 == 0) // Memory
 	{
@@ -364,11 +395,17 @@ Inst* decode16(uint32_t opc)
 		}
 		else if (o15_12 == 0x8000) // C.JR and C.MV
 		{
-			const uint8_t rs = (opc >> 2) & 0x1f; // opc[6:2]
 			if (rs == 0)
 				return new CompJr(rd);
 			//else
 			return new CompMv(rs, rd);
+		}
+		else if (o15_12 == 0xe000 || o15_12 == 0xf000) // C.SDSP
+		{
+			uint16_t imm = (opc >> 1) & 0x1c0; // opc[9:7] -> imm[8:6]
+			const uint16_t low_imm = (opc >> 10) & 7; // opc[12:10]
+			imm |= low_imm << 3; // imm[5:3]
+			return new CompSdSp(imm, rs);
 		}
 	}
 	return nullptr;
