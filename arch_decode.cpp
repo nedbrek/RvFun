@@ -310,6 +310,35 @@ private:
 	uint8_t rs_;
 };
 
+/// Compressed Shift Left Immediate
+class CompSllI : public Inst
+{
+public:
+	CompSllI(uint8_t sft, uint8_t rd)
+	: sft_(sft)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t val = state.getReg(rd_);
+		state.setReg(rd_, val << sft_);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.SLLI r" << uint32_t(rd_) << " <<= " << uint32_t(sft_);
+		return os.str();
+	}
+
+private:
+	uint8_t sft_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -384,6 +413,9 @@ Inst* decode16(uint32_t opc)
 
 		if (o15_12 < 0x2000) // C.SLLI
 		{
+			uint8_t sft = (opc >> 2) & 0x1f; // opc[6:2] -> sft[4:0]
+			sft |= (opc >> 7) & 0x20; // opc[12] -> sft[5]
+			return new CompSllI(sft, rd);
 		}
 		else if (o15_12 == 0x6000 || o15_12 == 0x7000) // C.LDSP
 		{
