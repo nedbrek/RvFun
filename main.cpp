@@ -2,6 +2,7 @@
 #include "sparse_mem.hpp"
 #include "simple_arch_state.hpp"
 #include <elf.h>
+#include <cstring>
 #include <iostream>
 #include <iomanip>
 #include <getopt.h>
@@ -87,13 +88,31 @@ int main(int argc, char **argv)
 		{
 			// TODO expand block for alignment?
 			// copy segment to specified VA 
-			std::cout << "Load block of size "
-			    << phdr->p_filesz
-			    << " from 0x"
+			std::cout << "Load block of size " << phdr->p_filesz;
+			if (phdr->p_filesz < phdr->p_memsz)
+			{
+				// create bigger block of zeroes
+				uint8_t *block = reinterpret_cast<uint8_t*>(calloc(phdr->p_memsz, 1));
+
+				// copy in what we have
+				memcpy(block, elf_mem + phdr->p_offset, phdr->p_filesz);
+
+				// add it
+				mem.addBlock(phdr->p_vaddr, phdr->p_memsz, block);
+
+				free(block);
+
+				std::cout << '(' << phdr->p_memsz << ')';
+			}
+			else
+			{
+				mem.addBlock(phdr->p_vaddr, phdr->p_filesz, elf_mem + phdr->p_offset);
+			}
+
+			std::cout << " from 0x"
 			    << std::hex << phdr->p_offset
-				 << " to VA 0x" << phdr->p_vaddr << std::dec
-				 << std::endl;
-			mem.addBlock(phdr->p_vaddr, phdr->p_filesz, elf_mem + phdr->p_offset);
+			    << " to VA 0x" << phdr->p_vaddr << std::dec
+			    << std::endl;
 		}
 	}
 

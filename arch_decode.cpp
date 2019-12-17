@@ -732,6 +732,48 @@ private:
 	uint8_t r1_;
 };
 
+/// Store
+class Store : public Inst
+{
+public:
+	Store(uint8_t sz, int32_t imm, uint8_t r1, uint8_t r2)
+	: sz_(sz)
+	, imm_(imm)
+	, r1_(r1)
+	, r2_(r2)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t ea = state.getReg(r1_) + imm_;
+		const uint64_t val = state.getReg(r2_);
+		state.writeMem(ea, 1 << sz_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		const char sz_str[] = {'B', 'H', 'W', 'D'};
+		os << 'S' << sz_str[sz_] << " [r" << uint32_t(r1_);
+
+		if (imm_ < 0)
+			os << '-' << -imm_;
+		else
+			os << '+' << imm_;
+		os << "] = r" << uint32_t(r2_);
+
+		return os.str();
+	}
+
+private:
+	uint8_t sz_;
+	int64_t imm_;
+	uint8_t r1_;
+	uint8_t r2_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -744,10 +786,21 @@ Inst* decode32(uint32_t opc)
 	{
 	case   0: // load
 	case   4: // load FP
-	case  32: // store
 	case  36: // store FP
 	case  12: // misc MEM
 		return nullptr; // TODO Mem
+
+	case  32: // store
+	{
+		uint16_t imm = rd; // opc[11:7] -> imm[4:0]
+		imm |= (opc >> 20) & 0xfe0; // opc[31:25] -> imm[11:5]
+		if (imm & 0x800)
+			imm |= 0xf000; // sign extend from bit 11
+
+		const int16_t s_imm = int16_t(imm);
+		const uint8_t sz = (opc >> 12) & 7; // opc[14:12]
+		return new Store(sz, s_imm, r1, r2);
+	}
 
 	case  20: // AUIPC
 	{
