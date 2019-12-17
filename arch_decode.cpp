@@ -481,13 +481,6 @@ public:
 private:
 };
 
-class Branch : public Inst
-{
-public:
-
-private:
-};
-
 class OpImm : public Inst
 {
 public:
@@ -611,11 +604,73 @@ private:
 	uint8_t rd_;
 };
 
+/// Conditional Branch
+class Branch : public Inst
+{
+public:
+	Branch(int64_t imm, uint8_t op, uint8_t r2, uint8_t r1)
+	: imm_(imm)
+	, op_(op)
+	, r2_(r2)
+	, r1_(r1)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t r1 = state.getReg(r1_);
+		const uint64_t r2 = state.getReg(r2_);
+
+		bool taken = false;
+		switch (op_)
+		{
+		case 0: taken = r1 == r2; break; // BEQ
+		case 1: taken = r1 != r2; break; // BNE
+		case 4: taken = int64_t(r1) < int64_t(r2); break; // BLT
+		case 5: taken = int64_t(r1) >= int64_t(r2); break; // BGE
+		case 6: taken = r1 < r2; break; // BLTU
+		case 7: taken = r1 >= r2; break; // BGEU
+		}
+		// can reduce half the cases with: taken ^= (op & 1);
+
+		const uint64_t pc = state.getPc();
+		if (taken)
+			state.setPc(pc + imm_);
+		else
+			state.setPc(pc + 4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << 'B';
+		switch (op_)
+		{
+		case 0: os << "EQ"; break; // BEQ
+		case 1: os << "NE"; break; // BNE
+		case 4: os << "LT"; break; // BLT
+		case 5: os << "GE"; break; // BGE
+		case 6: os << "LTU"; break; // BLTU
+		case 7: os << "GEU"; break; // BGEU
+		}
+		os << ' ' << 'r' << uint32_t(r1_) << ", r" << uint32_t(r2_) << ", " << imm_;
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+	uint8_t op_;
+	uint8_t r2_;
+	uint8_t r1_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
 	const uint32_t group = opc & 0x7c; // opc[6:2]
 	const uint8_t rd = (opc >> 7) & 0x1f; //opc[11:7]
+	const uint8_t r1 = (opc >> 15) & 0x1f; // opc[19:15]
+	const uint8_t r2 = (opc >> 20) & 0x1f; // opc[24:20]
 
 	switch (group)
 	{
@@ -635,7 +690,6 @@ Inst* decode32(uint32_t opc)
 	case  16: // op imm
 	{
 		const uint8_t op = (opc >> 12) & 7; // opc[14:12]
-		const uint8_t r1 = (opc >> 15) & 0x1f; // opc[19:15]
 		uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
 		if (imm & 0x800)
 			imm |= 0xf000; // sign ex
@@ -662,8 +716,16 @@ Inst* decode32(uint32_t opc)
 
 	case  96: // branch
 	{
-		//return new Branch();
-		return nullptr; // TODO
+		uint32_t imm = (opc >> 7) & 0x1e; // opc[11:8] -> imm[4:1]
+		imm |= (opc >> 20) & 0x7e0; // opc[30:25] -> imm[10:5]
+		if (opc & 0x80)
+			imm |= 0x800; // opc[7] -> imm[11]
+		if (opc & 0x80000000)
+			imm |= 0xfffff000; // sign ex imm[31:12] from opc[31]
+
+		const int32_t s_imm = imm;
+		const uint8_t op = (opc >> 12) & 7; // opc[14:12]
+		return new Branch(s_imm, op, r2, r1);
 	}
 
 	case 100: // JALR
