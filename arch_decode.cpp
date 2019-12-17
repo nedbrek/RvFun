@@ -339,15 +339,47 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Add (reg to reg)
+class CompAdd : public Inst
+{
+public:
+	CompAdd(uint8_t rs, uint8_t rd)
+	: rs_(rs)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t vrd = state.getReg(rd_);
+		const uint64_t vrs = state.getReg(rs_);
+
+		state.setReg(rd_, vrd + vrs);
+
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.ADD r" << uint32_t(rd_) << " += r" << uint32_t(rs_);
+		return os.str();
+	}
+
+private:
+	uint8_t rs_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
 	const uint8_t rd = (opc >> 7) & 0x1f; // opc[11:7]
 	const uint8_t rs = (opc >> 2) & 0x1f; // opc[6:2]
+	const uint16_t o15_13 = opc & 0xe000; // opc[15:13]
 
 	if (o10 == 0) // Memory
 	{
-		const uint16_t o15_13 = opc & 0xe000;
 		if (o15_13 == 0) // C.ADDI4SPN
 		{
 			const uint8_t rd = ((opc >> 2) & 7) + 8; // opc[4:2]
@@ -360,7 +392,6 @@ Inst* decode16(uint32_t opc)
 	}
 	else if (o10 == 1) // common compressed ops
 	{
-		const uint16_t o15_13 = opc & 0xe000;
 		if (o15_13 == 0x4000)
 		{
 			// TODO check for hint
@@ -409,7 +440,7 @@ Inst* decode16(uint32_t opc)
 	}
 	else if (o10 == 2) // more ops
 	{
-		const uint16_t o15_12 = opc & 0xf000;
+		const uint16_t o15_12 = opc & 0xf000; // opc[15:12]
 
 		if (o15_12 < 0x2000) // C.SLLI
 		{
@@ -431,6 +462,11 @@ Inst* decode16(uint32_t opc)
 				return new CompJr(rd);
 			//else
 			return new CompMv(rs, rd);
+		}
+		else if (o15_12 == 0x9000) // C.EBREAK, C.JALR, C.ADD
+		{
+			if (rd != 0 && rs != 0)
+				return new CompAdd(rs, rd);
 		}
 		else if (o15_12 == 0xe000 || o15_12 == 0xf000) // C.SDSP
 		{
