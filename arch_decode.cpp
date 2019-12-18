@@ -371,6 +371,37 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Add Immediate
+class CompAddI : public Inst
+{
+public:
+	CompAddI(int64_t imm, uint8_t rd)
+	: imm_(imm)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t vrd = state.getReg(rd_);
+
+		state.setReg(rd_, vrd + imm_);
+
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.ADDI r" << uint32_t(rd_) << " += " << imm_;
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -392,6 +423,15 @@ Inst* decode16(uint32_t opc)
 	}
 	else if (o10 == 1) // common compressed ops
 	{
+		if (o15_13 == 0x0000) // C.ADDI (and C.NOP)
+		{
+			uint8_t raw_bits = (opc >> 2) & 0x1f; // opc[6:2] -> imm[4:0]
+			if (opc & 0x1000) // opc[12] -> imm[31:5] (sign ex)
+				raw_bits |= 0xe0;
+
+			const int8_t imm = raw_bits;
+			return new CompAddI(imm, rd);
+		}
 		if (o15_13 == 0x4000)
 		{
 			// TODO check for hint
