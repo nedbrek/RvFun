@@ -492,7 +492,8 @@ Inst* decode16(uint32_t opc)
 		{
 			uint64_t imm = (opc & 0x1c) << 4; // opc[4:2] -> imm[8:6]
 			if (opc & 0x1000) // opc[12] -> imm[5]
-				imm |= 0x10;
+				imm |= 0x20;
+			imm |= (opc & 0x60) >> 2; // opc[6:5] -> imm[4:3]
 
 			return new CompLdSp(imm, rd);
 		}
