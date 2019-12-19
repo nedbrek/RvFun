@@ -814,6 +814,86 @@ private:
 	uint8_t r2_;
 };
 
+/// Load
+class Load : public Inst
+{
+public:
+	Load(uint8_t op, int64_t imm, uint8_t r1, uint8_t rd)
+	: op_(op)
+	, imm_(imm)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t ea = state.getReg(r1_) + imm_;
+		const uint8_t sz = 1 << (op_ & 3);
+
+		const uint64_t mval = state.readMem(ea, sz);
+
+		if (op_ > 3) // unsigned
+		{
+			state.setReg(rd_, mval);
+			state.incPc(4);
+			return;
+		}
+		//else sign extend
+		uint64_t val = 0;
+		if (op_ == 0) // byte
+		{
+			const int64_t sv = int8_t(mval);
+			val = sv;
+		}
+		else if (op_ == 1) // halfword
+		{
+			const int64_t sv = int16_t(mval);
+			val = sv;
+		}
+		else if (op_ == 2) // word
+		{
+			const int64_t sv = int32_t(mval);
+			val = sv;
+		}
+		else if (op_ == 3) // dword
+		{
+			val = mval;
+		}
+
+		state.setReg(rd_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		const char sz_str[] = {'B', 'H', 'W', 'D'};
+		const uint8_t sz = (op_ & 3);
+
+		os << 'L' << sz_str[sz];
+		if (op_ > 3)
+			os << 'U';
+
+		os << ' ' << 'r' << uint32_t(rd_) << " = [r" << uint32_t(r1_);
+
+		if (imm_ < 0)
+			os << '-' << -imm_;
+		else
+			os << '+' << imm_;
+
+		os << ']';
+
+		return os.str();
+	}
+
+private:
+	uint8_t op_;
+	int64_t imm_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -825,6 +905,17 @@ Inst* decode32(uint32_t opc)
 	switch (group)
 	{
 	case   0: // load
+	{
+		const uint8_t op = (opc >> 12) & 7; // opc[14:12]
+
+		uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
+		if (imm & 0x800)
+			imm |= 0xf000; // sign ex
+		int16_t s_imm = imm;
+
+		return new Load(op, s_imm, r1, rd);
+	}
+
 	case   4: // load FP
 	case  36: // store FP
 	case  12: // misc MEM
