@@ -402,6 +402,45 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Branch if (Not) Equal to Zero
+class CompBz : public Inst
+{
+public:
+	CompBz(bool eq, int64_t imm, uint8_t rs)
+	: eq_(eq)
+	, imm_(imm)
+	, rs_(rs)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t val = state.getReg(rs_);
+		const bool taken = (eq_ && val == 0) || (!eq_ && val != 0);
+		if (taken)
+		{
+			state.incPc(imm_);
+		}
+		else
+			state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.B";
+		if (eq_) os << 'E' << 'Q';
+		else     os << 'N' << 'E';
+		os << "Z r" << uint32_t(rs_) << ',' << ' ' << imm_;
+		return os.str();
+	}
+
+private:
+	bool eq_;
+	int64_t imm_;
+	uint8_t rs_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -476,6 +515,22 @@ Inst* decode16(uint32_t opc)
 					return new CompAlu(fun, rs2, rsd);
 				}
 			}
+		}
+		else if (o15_13 == 0xe000 || o15_13 == 0xf000) // C.BEQZ, C.BNEZ
+		{
+			uint16_t imm = (opc & 0x60) << 1; // opc[6:5] -> imm[7:6]
+			imm |= (opc &      4) ? 0x20 : 0; // opc[ 2] -> imm[5]
+			imm |= (opc &      8) ? 0x02 : 0; // opc[ 3] -> imm[1]
+			imm |= (opc & 0x0010) ? 0x04 : 0; // opc[ 4] -> imm[2]
+			imm |= (opc & 0x0400) ? 0x08 : 0; // opc[10] -> imm[3]
+			imm |= (opc & 0x0800) ? 0x10 : 0; // opc[11] -> imm[4]
+			if (opc & 0x1000) // imm[15:8]
+				imm |= 0xff00;
+			const int16_t s_imm = imm;
+
+			const uint8_t rs = ((opc >> 7) & 7) + 8; // opc[9:7]
+			const bool eq = o15_13 == 0xe000; // else NE
+			return new CompBz(eq, s_imm, rs);
 		}
 	}
 	else if (o10 == 2) // more ops
