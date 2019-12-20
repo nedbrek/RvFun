@@ -516,7 +516,7 @@ Inst* decode16(uint32_t opc)
 				}
 			}
 		}
-		else if (o15_13 == 0xe000 || o15_13 == 0xf000) // C.BEQZ, C.BNEZ
+		else if (o15_13 == 0xc000 || o15_13 == 0xe000) // C.BEQZ, C.BNEZ
 		{
 			uint16_t imm = (opc & 0x60) << 1; // opc[6:5] -> imm[7:6]
 			imm |= (opc &      4) ? 0x20 : 0; // opc[ 2] -> imm[5]
@@ -529,7 +529,7 @@ Inst* decode16(uint32_t opc)
 			const int16_t s_imm = imm;
 
 			const uint8_t rs = ((opc >> 7) & 7) + 8; // opc[9:7]
-			const bool eq = o15_13 == 0xe000; // else NE
+			const bool eq = o15_13 == 0xc000; // else NE
 			return new CompBz(eq, s_imm, rs);
 		}
 	}
