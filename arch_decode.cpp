@@ -472,6 +472,32 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Jump
+class CompJ : public Inst
+{
+public:
+	explicit CompJ(int64_t imm)
+	: imm_(imm)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		// unconditional
+		state.setPc(state.getPc() + imm_);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.J " << imm_;
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -500,8 +526,10 @@ Inst* decode16(uint32_t opc)
 			const uint8_t rdp = ((opc >> 2) & 7) + 8; // opc[4:2]
 			return new CompLd(imm, rsp, rdp);
 		}
+		return nullptr;
 	}
-	else if (o10 == 1) // common compressed ops
+
+	if (o10 == 1) // common compressed ops
 	{
 		if (o15_13 == 0x0000) // C.ADDI (and C.NOP)
 		{
@@ -557,6 +585,22 @@ Inst* decode16(uint32_t opc)
 				}
 			}
 		}
+		else if (o15_13 == 0xa000) // C.J
+		{
+			uint16_t imm = (opc & 0x600) >> 1; // opc[10:9] -> imm[9:8]
+			imm |= (opc &      4) ? 0x020 : 0; // opc[ 2] -> imm[5]
+			imm |= (opc &      8) ? 0x002 : 0; // opc[ 3] -> imm[1]
+			imm |= (opc & 0x0010) ? 0x004 : 0; // opc[ 4] -> imm[2]
+			imm |= (opc & 0x0020) ? 0x008 : 0; // opc[ 5] -> imm[3]
+			imm |= (opc & 0x0040) ? 0x080 : 0; // opc[ 6] -> imm[7]
+			imm |= (opc & 0x0080) ? 0x040 : 0; // opc[ 7] -> imm[6]
+			imm |= (opc & 0x0100) ? 0x400 : 0; // opc[ 8] -> imm[10]
+			imm |= (opc & 0x0800) ? 0x010 : 0; // opc[11] -> imm[4]
+			if (opc & 0x1000) // opc[12] -> imm[15:12]
+				imm |= 0xf000;
+			const int16_t s_imm = imm;
+			return new CompJ(s_imm);
+		}
 		else if (o15_13 == 0xc000 || o15_13 == 0xe000) // C.BEQZ, C.BNEZ
 		{
 			uint16_t imm = (opc & 0x60) << 1; // opc[6:5] -> imm[7:6]
@@ -565,7 +609,7 @@ Inst* decode16(uint32_t opc)
 			imm |= (opc & 0x0010) ? 0x04 : 0; // opc[ 4] -> imm[2]
 			imm |= (opc & 0x0400) ? 0x08 : 0; // opc[10] -> imm[3]
 			imm |= (opc & 0x0800) ? 0x10 : 0; // opc[11] -> imm[4]
-			if (opc & 0x1000) // imm[15:8]
+			if (opc & 0x1000) // opc[12] -> imm[15:8]
 				imm |= 0xff00;
 			const int16_t s_imm = imm;
 
