@@ -106,7 +106,7 @@ public:
 		const uint32_t rs = state.getReg(rsd_);
 		const uint32_t r2 = state.getReg(r2_);
 
-		uint32_t v = 0;
+		uint32_t v = 0; // TODO: sign extend to 64
 		switch (fun_)
 		{
 		case 0: v = rs - r2; break;
@@ -402,6 +402,38 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Add Immediate Word
+class CompAddIw : public Inst
+{
+public:
+	CompAddIw(int64_t imm, uint8_t rd)
+	: imm_(imm)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint32_t vrd = state.getReg(rd_) + imm_;
+		const int64_t svrd = int32_t(vrd);
+
+		state.setReg(rd_, svrd);
+
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.ADDIW r" << uint32_t(rd_) << " += " << imm_;
+		return os.str();
+	}
+
+private:
+	int64_t imm_;
+	uint8_t rd_;
+};
+
 /// Compressed Branch if (Not) Equal to Zero
 class CompBz : public Inst
 {
@@ -539,6 +571,15 @@ Inst* decode16(uint32_t opc)
 
 			const int8_t imm = raw_bits;
 			return new CompAddI(imm, rd);
+		}
+		if (o15_13 == 0x2000) // C.ADDIW
+		{
+			uint8_t raw_bits = (opc >> 2) & 0x1f; // opc[6:2] -> imm[4:0]
+			if (opc & 0x1000) // opc[12] -> imm[31:5] (sign ex)
+				raw_bits |= 0xe0;
+
+			const int8_t imm = raw_bits;
+			return new CompAddIw(imm, rd);
 		}
 		if (o15_13 == 0x4000)
 		{
