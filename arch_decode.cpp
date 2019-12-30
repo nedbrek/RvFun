@@ -530,6 +530,38 @@ private:
 	int64_t imm_;
 };
 
+/// Compressed Store Word
+class CompSw : public Inst
+{
+public:
+	CompSw(uint8_t imm, uint8_t rbase, uint8_t rsrc)
+	: imm_(imm)
+	, rbase_(rbase)
+	, rsrc_(rsrc)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t base = state.getReg(rbase_);
+		const uint64_t val = state.getReg(rsrc_);
+		state.writeMem(base + imm_, 4, val);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.SW [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << "] = r" << uint32_t(rsrc_);
+		return os.str();
+	}
+
+private:
+	uint8_t imm_;
+	uint8_t rbase_;
+	uint8_t rsrc_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -557,6 +589,17 @@ Inst* decode16(uint32_t opc)
 			const uint8_t rsp = ((opc >> 7) & 7) + 8; // opc[9:7]
 			const uint8_t rdp = ((opc >> 2) & 7) + 8; // opc[4:2]
 			return new CompLd(imm, rsp, rdp);
+		}
+		if (o15_13 == 0xc000) // C.SW
+		{
+			// zero extended imm
+			uint8_t imm = (opc >> (10 - 3)) & (7 << 3); // opc[12:10] -> imm[5:3]
+			imm |= (opc & 0x20) ? 0x40 : 0; // opc[5] -> imm[6]
+			imm |= (opc & 0x40) ?    4 : 0; // opc[6] -> imm[2]
+
+			const uint8_t rbase = ((opc >> 7) & 7) + 8; // opc[9:7]
+			const uint8_t rsrc  = ((opc >> 2) & 7) + 8; // opc[4:2]
+			return new CompSw(imm, rbase, rsrc);
 		}
 		return nullptr;
 	}
