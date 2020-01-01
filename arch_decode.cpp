@@ -1119,6 +1119,99 @@ private:
 	uint8_t rd_;
 };
 
+/// Integer Multiply and Divide (and Remainder)
+class ImulDiv : public Inst
+{
+public:
+	ImulDiv(uint8_t op, uint8_t r2, uint8_t r1, uint8_t rd)
+	: op_(op)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t vr1 = state.getReg(r1_);
+		const uint64_t vr2 = state.getReg(r2_);
+		uint64_t val = 0;
+
+		switch (op_)
+		{
+		case 0: // MUL (lower)
+			val = vr1 * vr2;
+			break;
+
+		case 1: // MULH (signed x signed)
+		{
+			const __int128 tmp = int64_t(vr1) * int64_t(vr2);
+			val = tmp >> 64;
+			break;
+		}
+
+		case 2: // MULHSU (unsigned x unsigned)
+		{
+			const unsigned __int128 tmp = vr1 * vr2;
+			val = tmp >> 64;
+			break;
+		}
+
+		case 3: // MULHU (signed x unsigned)
+		{
+			const __int128 tmp = int64_t(vr1) * vr2;
+			val = tmp >> 64;
+			break;
+		}
+
+		case 4: // DIV (signed)
+			val = int64_t(vr1) / int64_t(vr2);
+			break;
+
+		case 5: // DIVU (unsigned)
+			val = vr1 / vr2;
+			break;
+
+		case 6: // REM (signeD)
+			val = int64_t(vr1) % int64_t(vr2);
+			break;
+
+		case 7: // REMU
+			val = vr1 % vr2;
+			break;
+		}
+
+		state.setReg(rd_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		switch (op_)
+		{
+		case 0: os << "MUL   "; break;
+		case 1: os << "MULH  "; break;
+		case 2: os << "MULHSU"; break;
+		case 3: os << "MULHU "; break;
+		case 4: os << "DIV   "; break;
+		case 5: os << "DIVU  "; break;
+		case 6: os << "REM   "; break;
+		case 7: os << "REMU  "; break;
+		}
+		os << ' ' << 'r' << uint32_t(rd_)
+		   << " = r" << uint32_t(r1_) << ", r" << uint32_t(r2_);
+
+		return os.str();
+	}
+
+private:
+	uint8_t op_;
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1126,12 +1219,12 @@ Inst* decode32(uint32_t opc)
 	const uint8_t rd = (opc >> 7) & 0x1f; //opc[11:7]
 	const uint8_t r1 = (opc >> 15) & 0x1f; // opc[19:15]
 	const uint8_t r2 = (opc >> 20) & 0x1f; // opc[24:20]
+	const uint8_t op = (opc >> 12) & 7; // opc[14:12]
 
 	switch (group)
 	{
 	case   0: // load
 	{
-		const uint8_t op = (opc >> 12) & 7; // opc[14:12]
 
 		uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
 		if (imm & 0x800)
@@ -1154,7 +1247,7 @@ Inst* decode32(uint32_t opc)
 			imm |= 0xf000; // sign extend from bit 11
 
 		const int16_t s_imm = int16_t(imm);
-		const uint8_t sz = (opc >> 12) & 7; // opc[14:12]
+		const uint8_t sz = op; // opc[14:12]
 		return new Store(sz, s_imm, r1, r2);
 	}
 
@@ -1166,7 +1259,6 @@ Inst* decode32(uint32_t opc)
 
 	case  16: // op imm
 	{
-		const uint8_t op = (opc >> 12) & 7; // opc[14:12]
 		uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
 		if (imm & 0x800)
 			imm |= 0xf000; // sign ex
@@ -1174,9 +1266,21 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case  24: // op imm32
-	case  48: // op
+		return nullptr; // TODO
+
+	case  48: // op reg,reg
+	{
+		if (opc & 0x2000000) // opc[25]
+		{
+			return new ImulDiv(op, r2, r1, rd);
+		}
+		//else int reg,reg
+
+		return nullptr; // TODO
+	}
+
 	case  56: // op32
-		return nullptr; // TODO int
+		return nullptr; // TODO
 
 	case  52: // LUI
 	{
@@ -1201,7 +1305,6 @@ Inst* decode32(uint32_t opc)
 			imm |= 0xfffff000; // sign ex imm[31:12] from opc[31]
 
 		const int32_t s_imm = imm;
-		const uint8_t op = (opc >> 12) & 7; // opc[14:12]
 		return new Branch(s_imm, op, r2, r1);
 	}
 
