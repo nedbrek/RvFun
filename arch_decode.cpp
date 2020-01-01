@@ -1287,6 +1287,40 @@ private:
 	uint8_t rd_;
 };
 
+/// Add Immediate Word
+class AddIw : public Inst
+{
+public:
+	AddIw(int16_t imm, uint8_t r1, uint8_t rd)
+	: imm_(imm)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint32_t vrd = state.getReg(r1_) + imm_;
+		const int64_t svrd = int32_t(vrd);
+
+		state.setReg(rd_, svrd);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "  ADDIW r" << uint32_t(rd_) << " = r" << uint32_t(r1_) << '+' << imm_;
+		return os.str();
+	}
+
+private:
+	int16_t imm_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1341,7 +1375,16 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case  24: // op imm32
+	{
+		if (op == 0) // ADDIW
+		{
+			uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
+			if (imm & 0x800)
+				imm |= 0xf000; // sign ex
+			return new AddIw(imm, r1, rd);
+		}
 		return nullptr; // TODO
+	}
 
 	case  48: // op reg,reg
 	{
