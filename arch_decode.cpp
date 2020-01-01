@@ -590,6 +590,37 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed Load Word
+class CompLw : public Inst
+{
+public:
+	CompLw(uint8_t imm, uint8_t rs, uint8_t rd)
+	: imm_(imm)
+	, rbase_(rs)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t base = state.getReg(rbase_) + imm_;
+		state.setReg(rd_, state.readMem(base, 4));
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.LW r" << uint32_t(rd_) << " = [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << ']';
+		return os.str();
+	}
+
+private:
+	uint8_t imm_;
+	uint8_t rbase_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -607,6 +638,17 @@ Inst* decode16(uint32_t opc)
 			imm |= (opc & 0x40) ? 4 : 0; // opc[6] -> imm[2]
 			imm |= (opc & 0x20) ? 8 : 0; // opc[5] -> imm[3]
 			return new CompAddI4SpN(imm, rd);
+		}
+		if (o15_13 == 0x4000) // C.LW
+		{
+			// zero extended imm
+			uint8_t imm = (opc >> (10 - 3)) & (7 << 3); // opc[12:10] -> imm[5:3]
+			imm |= (opc & 0x20) ? 0x40 : 0; // opc[5] -> imm[6]
+			imm |= (opc & 0x40) ?    4 : 0; // opc[6] -> imm[2]
+
+			const uint8_t rsp = ((opc >> 7) & 7) + 8; // opc[9:7]
+			const uint8_t rdp = ((opc >> 2) & 7) + 8; // opc[4:2]
+			return new CompLw(imm, rsp, rdp);
 		}
 		if (o15_13 == 0x6000) // C.LD
 		{
