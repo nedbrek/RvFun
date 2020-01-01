@@ -562,6 +562,34 @@ private:
 	uint8_t rsrc_;
 };
 
+/// Compressed Load Upper Immediate
+class CompLui : public Inst
+{
+public:
+	CompLui(int32_t imm, uint8_t rd)
+	: imm_(imm)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		state.setReg(rd_, int64_t(imm_));
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << "C.LUI r" << uint32_t(rd_) << " = " << imm_;
+		return os.str();
+	}
+
+private:
+	int32_t imm_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -635,7 +663,7 @@ Inst* decode16(uint32_t opc)
 			const int8_t imm = raw_bits;
 			return new CompLI(rd, imm);
 		}
-		else if (o15_13 == 0x6000 || o15_13 == 0x7000) // C.LUI, C.ADDI16SP
+		else if (o15_13 == 0x6000) // C.LUI, C.ADDI16SP
 		{
 			if (rd == 2)
 			{
@@ -648,6 +676,11 @@ Inst* decode16(uint32_t opc)
 				return new CompAddI16Sp(s_imm);
 			}
 			//else
+			uint32_t imm = (opc & 0x7c) << 10; // opc[6:2] -> imm[16:12]
+			if (opc & 0x1000) // opc[12] -> sign ex
+				imm |= 0xfffe0000;
+
+			return new CompLui(imm, rd);
 		}
 		else if (o15_13 == 0x8000)
 		{
