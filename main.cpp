@@ -163,6 +163,9 @@ int main(int argc, char **argv)
 		}
 		else
 		{
+			if (opc_sz == 4)
+				std::cout << ' ' << ' '; // shift for C.
+
 			std::cout << inst->disasm();
 			inst->execute(state);
 		}

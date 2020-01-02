@@ -1,6 +1,17 @@
 #include "inst.hpp"
 #include "arch_state.hpp"
 #include <sstream>
+#include <iomanip>
+
+// 8 character mnemonics
+
+namespace
+{
+	std::basic_ostream<char>& printReg(std::ostream &os, uint8_t r)
+	{
+		return os << 'r' << std::left << std::setw(2) << uint32_t(r);
+	}
+}
 
 namespace rvfun
 {
@@ -24,7 +35,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.LI r" << uint32_t(rd_) << " = " << imm();
+		os << "C.LI       ";
+		printReg(os, rd_) << " = " << imm();
 		return os.str();
 	}
 
@@ -75,12 +87,13 @@ public:
 		char op = ' ';
 		switch (fun_)
 		{
-		case 0: os << "SUB"; op = '-'; break;
-		case 1: os << "XOR"; op = '^'; break;
-		case 2: os << "OR "; op = '|'; break;
-		case 3: os << "AND"; op = '&'; break;
+		case 0: os << "SUB     "; op = '-'; break;
+		case 1: os << "XOR     "; op = '^'; break;
+		case 2: os << "OR      "; op = '|'; break;
+		case 3: os << "AND     "; op = '&'; break;
 		}
-		os << ' ' << 'r' << uint32_t(rsd_) << ' ' << op << "= r" << uint32_t(r2_);
+		os << ' ';
+		printReg(os, rsd_) << ' ' << op << "= r" << uint32_t(r2_);
 		return os.str();
 	}
 
@@ -126,12 +139,13 @@ public:
 		char op = ' ';
 		switch (fun_)
 		{
-		case 0: os << "SUBW"; op = '-'; break;
-		case 1: os << "ADDW"; op = '+'; break;
+		case 0: os << "SUBW    "; op = '-'; break;
+		case 1: os << "ADDW    "; op = '+'; break;
 		//case 2: //rsvd
 		//case 3: //rsvd
 		}
-		os << ' ' << 'r' << uint32_t(rsd_) << ' ' << op << "= r" << uint32_t(r2_);
+		os << ' ';
+		printReg(os, rsd_) << ' ' << op << "= r" << uint32_t(r2_);
 		return os.str();
 	}
 
@@ -159,7 +173,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.JR r" << uint32_t(rd_);
+		os << "C.JR       ";
+		printReg(os, rd_);
 		return os.str();
 	}
 
@@ -186,7 +201,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.MV r" << uint32_t(rd_) << " = r" << uint32_t(rs_);
+		os << "C.MV       ";
+		printReg(os, rd_) << " = r" << uint32_t(rs_);
 		return os.str();
 	}
 
@@ -215,7 +231,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.LDSP r" << uint32_t(rd_) << " = [r2+" << imm_ << ']';
+		os << "C.LDSP     ";
+		printReg(os, rd_) << " = [r2+" << imm_ << ']';
 		return os.str();
 	}
 
@@ -244,7 +261,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.ADDI4SPN r" << uint32_t(rd_) << " = r2+" << imm_;
+		os << "C.ADDI4SPN ";
+		printReg(os, rd_) << " = r2+" << imm_;
 		return os.str();
 	}
 
@@ -301,7 +319,7 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.SDSP [SP+" << imm_ << "] = r" << uint32_t(rs_);
+		os << "C.SDSP     [SP+" << imm_ << "] = r" << uint32_t(rs_);
 		return os.str();
 	}
 
@@ -330,7 +348,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.SLLI r" << uint32_t(rd_) << " <<= " << uint32_t(sft_);
+		os << "C.SLLI     ";
+		printReg(os, rd_) << " <<= " << uint32_t(sft_);
 		return os.str();
 	}
 
@@ -362,7 +381,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.ADD r" << uint32_t(rd_) << " += r" << uint32_t(rs_);
+		os << "C.ADD      ";
+		printReg(os, rd_) << " += r" << uint32_t(rs_);
 		return os.str();
 	}
 
@@ -393,7 +413,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.ADDI r" << uint32_t(rd_) << " += " << imm_;
+		os << "C.ADDI     ";
+		printReg(os, rd_) << " += " << imm_;
 		return os.str();
 	}
 
@@ -425,7 +446,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.ADDIW r" << uint32_t(rd_) << " += " << imm_;
+		os << "C.ADDIW    ";
+		printReg(os, rd_) << " += " << imm_;
 		return os.str();
 	}
 
@@ -463,7 +485,8 @@ public:
 		os << "C.B";
 		if (eq_) os << 'E' << 'Q';
 		else     os << 'N' << 'E';
-		os << "Z r" << uint32_t(rs_) << ',' << ' ' << imm_;
+		os << "Z     ";
+		printReg(os, rs_) << ',' << ' ' << imm_;
 		return os.str();
 	}
 
@@ -494,7 +517,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.LD r" << uint32_t(rd_) << " = [r" << uint32_t(rs_) << '+' << imm_ << ']';
+		os << "C.LD       ";
+		printReg(os, rd_) << " = [r" << uint32_t(rs_) << '+' << imm_ << ']';
 		return os.str();
 	}
 
@@ -522,7 +546,7 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.J " << imm_;
+		os << "C.J        " << imm_;
 		return os.str();
 	}
 
@@ -552,7 +576,7 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.SW [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << "] = r" << uint32_t(rsrc_);
+		os << "C.SW       [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << "] = r" << uint32_t(rsrc_);
 		return os.str();
 	}
 
@@ -581,7 +605,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.LUI r" << uint32_t(rd_) << " = " << imm_;
+		os << "C.LUI      ";
+		printReg(os, rd_) << " = " << imm_;
 		return os.str();
 	}
 
@@ -611,7 +636,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.LW r" << uint32_t(rd_) << " = [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << ']';
+		os << "C.LW       ";
+		printReg(os, rd_) << " = [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << ']';
 		return os.str();
 	}
 
@@ -839,7 +865,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "AUIPC r" << uint32_t(rd_) << " = PC " << std::hex;
+		os << "AUIPC    ";
+		printReg(os, rd_) << " = PC " << std::hex;
 		if (imm_ < 0)
 			os << '-' << ' ' << -imm_;
 		else
@@ -873,7 +900,7 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "JAL r" << uint32_t(rd_) << ", " << imm_;
+		os << "JAL      r" << uint32_t(rd_) << ", " << imm_;
 		return os.str();
 	}
 
@@ -944,14 +971,14 @@ public:
 		const char *op;
 		switch (op_)
 		{
-		case 0: os << "ADDI"; op = "+"; break;
-		case 1: os << "SLLI"; op = "<<"; break;
-		case 4: os << "XORI"; op = "^"; break;
-		case 6: os << " ORI"; op = "|"; break;
-		case 7: os << "ANDI"; op = "&"; break;
+		case 0: os << "ADDI    "; op = "+"; break;
+		case 1: os << "SLLI    "; op = "<<"; break;
+		case 4: os << "XORI    "; op = "^"; break;
+		case 6: os << " ORI    "; op = "|"; break;
+		case 7: os << "ANDI    "; op = "&"; break;
 
-		case 2: os << "SLTI "; op = "<i"; break;
-		case 3: os << "SLTIU"; op = "<u"; break;
+		case 2: os << "SLTI    "; op = "<i"; break;
+		case 3: os << "SLTIU   "; op = "<u"; break;
 
 		case 5: // SRLI, SRAI
 		{
@@ -959,12 +986,12 @@ public:
 			const bool arith = (imm_ & 0x400) != 0;
 			if (arith)
 			{
-				os << "SRAI";
+				os << "SRAI    ";
 				op = ">>i";
 			}
 			else
 			{
-				os << "SRLI";
+				os << "SRLI    ";
 				op = ">>u";
 			}
 
@@ -972,7 +999,8 @@ public:
 		}
 		}
 
-		os << ' ' << 'r' << uint32_t(rd_) << " = r" << uint32_t(r1_) << ' ' << op << ' ' << imm;
+		os << ' ';
+		printReg(os, rd_) << " = r" << uint32_t(r1_) << ' ' << op << ' ' << imm;
 
 		return os.str();
 	}
@@ -1003,7 +1031,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "LUI r" << uint32_t(rd_) << " = " << imm_;
+		os << "LUI      ";
+		printReg(os, rd_) << " = " << imm_;
 		return os.str();
 	}
 
@@ -1054,12 +1083,12 @@ public:
 		os << 'B';
 		switch (op_)
 		{
-		case 0: os << "EQ"; break; // BEQ
-		case 1: os << "NE"; break; // BNE
-		case 4: os << "LT"; break; // BLT
-		case 5: os << "GE"; break; // BGE
-		case 6: os << "LTU"; break; // BLTU
-		case 7: os << "GEU"; break; // BGEU
+		case 0: os << "EQ     "; break; // BEQ
+		case 1: os << "NE     "; break; // BNE
+		case 4: os << "LT     "; break; // BLT
+		case 5: os << "GE     "; break; // BGE
+		case 6: os << "LTU    "; break; // BLTU
+		case 7: os << "GEU    "; break; // BGEU
 		}
 		os << ' ' << 'r' << uint32_t(r1_) << ", r" << uint32_t(r2_) << ", " << imm_;
 		return os.str();
@@ -1096,7 +1125,7 @@ public:
 	{
 		std::ostringstream os;
 		const char sz_str[] = {'B', 'H', 'W', 'D'};
-		os << 'S' << sz_str[sz_] << " [r" << uint32_t(r1_);
+		os << 'S' << sz_str[sz_] << "       [r" << uint32_t(r1_);
 
 		if (imm_ < 0)
 			os << '-' << -imm_;
@@ -1174,8 +1203,11 @@ public:
 		os << 'L' << sz_str[sz];
 		if (op_ > 3)
 			os << 'U';
+		else
+			os << ' ';
 
-		os << ' ' << 'r' << uint32_t(rd_) << " = [r" << uint32_t(r1_);
+		os << "      ";
+		printReg(os, rd_) << " = [r" << uint32_t(r1_);
 
 		if (imm_ < 0)
 			os << '-' << -imm_;
@@ -1265,16 +1297,17 @@ public:
 		std::ostringstream os;
 		switch (op_)
 		{
-		case 0: os << "MUL   "; break;
-		case 1: os << "MULH  "; break;
-		case 2: os << "MULHSU"; break;
-		case 3: os << "MULHU "; break;
-		case 4: os << "DIV   "; break;
-		case 5: os << "DIVU  "; break;
-		case 6: os << "REM   "; break;
-		case 7: os << "REMU  "; break;
+		case 0: os << "MUL     "; break;
+		case 1: os << "MULH    "; break;
+		case 2: os << "MULHSU  "; break;
+		case 3: os << "MULHU   "; break;
+		case 4: os << "DIV     "; break;
+		case 5: os << "DIVU    "; break;
+		case 6: os << "REM     "; break;
+		case 7: os << "REMU    "; break;
 		}
-		os << ' ' << 'r' << uint32_t(rd_)
+		os << ' ';
+		printReg(os, rd_)
 		   << " = r" << uint32_t(r1_) << ", r" << uint32_t(r2_);
 
 		return os.str();
@@ -1311,7 +1344,8 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "  ADDIW r" << uint32_t(rd_) << " = r" << uint32_t(r1_) << '+' << imm_;
+		os << "ADDIW    ";
+		printReg(os, rd_) << " = r" << uint32_t(r1_) << '+' << imm_;
 		return os.str();
 	}
 
