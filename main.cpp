@@ -149,7 +149,9 @@ int main(int argc, char **argv)
 		else
 			inst = decode16(full_inst);
 
-		std::cout << std::hex
+		std::cout
+		          << std::setw(12) << icount << ' '
+		          << std::hex
 		          << std::setw(12) << pc << ' '
 		          << std::setw(8) << full_inst << ' '
 					 << std::dec;
