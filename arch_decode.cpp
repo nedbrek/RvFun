@@ -781,8 +781,8 @@ Inst* decode16(uint32_t opc)
 			imm |= (opc & 0x0080) ? 0x040 : 0; // opc[ 7] -> imm[6]
 			imm |= (opc & 0x0100) ? 0x400 : 0; // opc[ 8] -> imm[10]
 			imm |= (opc & 0x0800) ? 0x010 : 0; // opc[11] -> imm[4]
-			if (opc & 0x1000) // opc[12] -> imm[15:12]
-				imm |= 0xf000;
+			if (opc & 0x1000) // opc[12] -> imm[15:11]
+				imm |= 0xf800;
 			const int16_t s_imm = imm;
 			return new CompJ(s_imm);
 		}
