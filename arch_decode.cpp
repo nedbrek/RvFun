@@ -1,5 +1,6 @@
 #include "inst.hpp"
 #include "arch_state.hpp"
+#include <iostream>
 #include <sstream>
 #include <iomanip>
 
@@ -1355,6 +1356,38 @@ private:
 	uint8_t rd_;
 };
 
+class Ecall : public Inst
+{
+public:
+	Ecall()
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t syscall = state.getReg(17); // r17 is syscall id
+		switch (syscall)
+		{
+		case 174: // getuid
+		case 175: // geteuid
+		case 176: // getgid
+		case 177: // getegid
+			state.setReg(10, 3); // return value
+			break;
+
+		default:
+			std::cerr << "Unimplemented systen call " << syscall << std::endl;
+		}
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		return "EBREAK";
+	}
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1481,8 +1514,18 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case  44: // AMO (atomics)
-	case 112: // system
 		return nullptr; // TODO
+
+	case 112: // system
+	{
+		if (op == 0)
+		{
+			// ECALL and EBREAK
+			// TODO: capture opc[20]
+			return new Ecall();
+		}
+		return nullptr; // TODO
+	}
 
 	case   8: // custom0
 	case  40: // custom1
