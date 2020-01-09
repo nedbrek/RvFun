@@ -4,10 +4,11 @@
 #include <sstream>
 #include <iomanip>
 
-// 8 character mnemonics
-
 namespace
 {
+	// 8 character mnemonics
+	constexpr uint32_t MNE_WIDTH = 8;
+
 	std::basic_ostream<char>& printReg(std::ostream &os, uint8_t r)
 	{
 		return os << 'r' << std::left << std::setw(2) << uint32_t(r);
@@ -1388,6 +1389,167 @@ public:
 	}
 };
 
+class OpRegReg : public Inst
+{
+public:
+	OpRegReg(uint8_t op, bool op30, uint8_t r2, uint8_t r1, uint8_t rd)
+	: op_(op)
+	, op30_(op30)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t vr1 = state.getReg(r1_);
+		const uint64_t vr2 = state.getReg(r2_);
+
+		uint64_t vd = 0;
+		switch (op_)
+		{
+		case 0: // ADD/SUB
+			if (op30_)
+				vd = vr1 - vr2;
+			else
+				vd = vr1 + vr2;
+			break;
+
+		case 1: // SLL
+			if (vr2 < 63)
+				vd = vr1 << vr2;
+			else
+				vd = 0;
+			break;
+
+		case 2: // SLT
+			vd = int64_t(vr1) < int64_t(vr2) ? 1 : 0;
+			break;
+
+		case 3: // SLTU
+			vd = vr1 < vr2 ? 1 : 0;
+			break;
+
+		case 4: // XOR
+			vd = vr1 ^ vr2;
+			break;
+
+		case 5:
+			if (op30_) // SRA
+			{
+				if (vr2 < 63)
+					vd = int64_t(vr1) >> vr2;
+				else
+					vd = int64_t(vr1) < 0 ? -1 : 0;
+			}
+			else // SRL
+			{
+				if (vr2 < 63)
+					vd = vr1 >> vr2;
+				else
+					vd = 0;
+			}
+			break;
+
+		case 6:
+			vd = vr1 | vr2;
+			break;
+
+		case 7:
+			vd = vr1 & vr2;
+			break;
+		}
+
+		state.setReg(rd_, vd);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		const char *op = "";
+
+		os << std::left;
+		switch (op_)
+		{
+		case 0: // ADD/SUB
+			if (op30_)
+			{
+				os << std::setw(MNE_WIDTH) << "SUB";
+				op = "-";
+			}
+			else
+			{
+				os << std::setw(MNE_WIDTH) << "ADD";
+				op = "+";
+			}
+			break;
+
+		case 1: // SLL
+			os << std::setw(MNE_WIDTH) << "SLL";
+			op = "<<";
+			break;
+
+		case 2:
+			os << std::setw(MNE_WIDTH) << "SLT";
+			op = "<";
+			break;
+
+		case 3:
+			os << std::setw(MNE_WIDTH) << "SLTU";
+			op = "<u";
+			break;
+
+		case 4:
+			os << std::setw(MNE_WIDTH) << "XOR";
+			op = "^";
+			break;
+
+		case 5:
+			if (op30_)
+			{
+				os << std::setw(MNE_WIDTH) << "SRA";
+				op = ">>";
+			}
+			else
+			{
+				os << std::setw(MNE_WIDTH) << "SRL";
+				op = ">>u";
+			}
+			break;
+
+		case 6:
+			os << std::setw(MNE_WIDTH) << "OR";
+			op = "|";
+			break;
+
+		case 7:
+			os << std::setw(MNE_WIDTH) << "AND";
+			op = "&";
+			break;
+		}
+
+		os << ' ';
+		printReg(os, rd_);
+
+		os << " = r"
+		   << uint32_t(r1_)
+			<< ' '
+			<< op
+			<< ' ' << 'r'
+			<< uint32_t(r2_);
+		return os.str();
+	}
+
+private:
+	uint8_t op_;
+	bool op30_;
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1460,8 +1622,9 @@ Inst* decode32(uint32_t opc)
 			return new ImulDiv(op, r2, r1, rd);
 		}
 		//else int reg,reg
+		const bool op30 = opc & 0x40000000; // opc[30]
 
-		return nullptr; // TODO
+		return new OpRegReg(op, op30, r2, r1, rd);
 	}
 
 	case  56: // op32
