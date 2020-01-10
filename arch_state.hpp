@@ -5,6 +5,7 @@
 
 namespace rvfun
 {
+class System;
 
 /// Interface to Architected State
 class ArchState
@@ -22,6 +23,9 @@ public:
 	/// get PC
 	virtual uint64_t getPc() const = 0;
 	virtual void setPc(uint64_t pc) = 0;
+
+	virtual System* getSys() = 0;
+	virtual const System* getSys() const = 0;
 };
 
 namespace Reg

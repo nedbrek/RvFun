@@ -14,7 +14,9 @@ public:
 	SimpleArchState();
 
 	void setMem(ArchMem *mem) { mem_ = mem; }
+	void setSys(System *sys) { sys_ = sys; }
 
+	//---from ArchState
 	uint64_t getReg(uint32_t num) const override
 	{
 		return num == 0 ? 0 : ireg[num];
@@ -44,11 +46,15 @@ public:
 		pc_ = pc;
 	}
 
+	virtual System* getSys() { return sys_; }
+	virtual const System* getSys() const { return sys_; }
+
 private:
 	static constexpr uint32_t NUM_REGS = 32;
 	uint64_t pc_ = 0;
 	uint64_t ireg[NUM_REGS] = {0,};
 	ArchMem *mem_ = nullptr;
+	System *sys_ = nullptr;
 };
 
 }
