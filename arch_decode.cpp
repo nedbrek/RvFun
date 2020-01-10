@@ -1,5 +1,6 @@
 #include "inst.hpp"
 #include "arch_state.hpp"
+#include "system.hpp"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -1374,6 +1375,10 @@ public:
 		case 176: // getgid
 		case 177: // getegid
 			state.setReg(10, 3); // return value
+			break;
+
+		case 214: // sbrk
+			state.getSys()->sbrk(state);
 			break;
 
 		default:
