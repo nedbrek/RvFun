@@ -37,7 +37,31 @@ SparseMem::SparseMem()
 
 void SparseMem::addBlock(uint64_t va, uint32_t sz, const void *data)
 {
-	// TODO - check for overlap
+	// check for overlap
+	for (const auto &b : blocks_)
+	{
+		const uint64_t block_end = b->va + b->sz;
+		if (block_end + 1 == va) // grow block
+		{
+			// TODO growing through gap
+
+			// calculate new size
+			sz += b->sz;
+
+			// grow block
+			b->mem = static_cast<uint8_t*>(realloc(b->mem, sz));
+
+			// init new mem
+			for (uint32_t a = b->sz; a < sz; ++a)
+				b->mem[a] = 0;
+
+			// update block size
+			b->sz = sz;
+
+			return; // done
+		}
+		// TODO other overlap cases
+	}
 	blocks_.emplace_back(new MemBlock(va, sz, data));
 }
 
