@@ -1377,7 +1377,7 @@ public:
 			break;
 
 		default:
-			std::cerr << "Unimplemented systen call " << syscall << std::endl;
+			std::cerr << "Unimplemented system call " << syscall << std::endl;
 		}
 
 		state.incPc(4);
@@ -1385,7 +1385,7 @@ public:
 
 	std::string disasm() const override
 	{
-		return "EBREAK";
+		return "ECALL";
 	}
 };
 
