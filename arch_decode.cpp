@@ -557,14 +557,15 @@ private:
 	int64_t imm_;
 };
 
-/// Compressed Store Word
-class CompSw : public Inst
+/// Compressed Store (D)Word
+class CompSdw : public Inst
 {
 public:
-	CompSw(uint8_t imm, uint8_t rbase, uint8_t rsrc)
+	CompSdw(uint8_t imm, uint8_t rbase, uint8_t rsrc, uint8_t sz)
 	: imm_(imm)
 	, rbase_(rbase)
 	, rsrc_(rsrc)
+	, sz_(sz)
 	{
 	}
 
@@ -572,14 +573,17 @@ public:
 	{
 		const uint64_t base = state.getReg(rbase_);
 		const uint64_t val = state.getReg(rsrc_);
-		state.writeMem(base + imm_, 4, val);
+		state.writeMem(base + imm_, sz_, val);
 		state.incPc(2);
 	}
 
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.SW       [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << "] = r" << uint32_t(rsrc_);
+		os << "C.S"; // one character of mnemonic
+		os << std::left << std::setw(MNE_WIDTH-1) << (sz_ == 4 ? 'W' : 'D');
+
+		os << " [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << "] = r" << uint32_t(rsrc_);
 		return os.str();
 	}
 
@@ -587,6 +591,7 @@ private:
 	uint8_t imm_;
 	uint8_t rbase_;
 	uint8_t rsrc_;
+	uint8_t sz_;
 };
 
 /// Compressed Load Upper Immediate
@@ -698,7 +703,18 @@ Inst* decode16(uint32_t opc)
 
 			const uint8_t rbase = ((opc >> 7) & 7) + 8; // opc[9:7]
 			const uint8_t rsrc  = ((opc >> 2) & 7) + 8; // opc[4:2]
-			return new CompSw(imm, rbase, rsrc);
+			return new CompSdw(imm, rbase, rsrc, 4);
+		}
+		if (o15_13 == 0xe000) // C.SD
+		{
+			// zero extended imm
+			uint8_t imm = (opc >> (10 - 3)) & (7 << 3); // opc[12:10] -> imm[5:3]
+			imm |= (opc & 0x20) ? 0x40 : 0; // opc[5] -> imm[6]
+			imm |= (opc & 0x40) ? 0x80 : 0; // opc[6] -> imm[7]
+
+			const uint8_t rbase = ((opc >> 7) & 7) + 8; // opc[9:7]
+			const uint8_t rsrc = ((opc >> 2) & 7) + 8; // opc[4:2]
+			return new CompSdw(imm, rbase, rsrc, 8);
 		}
 		return nullptr;
 	}
