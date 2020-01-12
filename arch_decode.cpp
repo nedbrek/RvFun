@@ -655,6 +655,35 @@ private:
 	uint8_t rd_;
 };
 
+class Candi : public Inst
+{
+public:
+	Candi(int32_t imm, uint8_t rsd)
+	: imm_(imm)
+	, rsd_(rsd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t val = state.getReg(rsd_) & int64_t(imm_);
+		state.setReg(rsd_, val);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << 'C' << '.' << std::left << std::setw(MNE_WIDTH) << "ANDI" << ' ';
+		printReg(os, rsd_) << " &= " << imm_;
+		return os.str();
+	}
+
+private:
+	int32_t imm_;
+	uint8_t rsd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -772,7 +801,18 @@ Inst* decode16(uint32_t opc)
 		else if (o15_13 == 0x8000)
 		{
 			const uint16_t op_11_10 = opc & 0x0c00; // opc[11:10]
-			if (op_11_10 == 0x0c00)
+			if (op_11_10 == 0x0800) // 10 - ANDI
+			{
+				uint8_t raw_bits = (opc >> 2) & 0x1f; // opc[6:2] -> imm[4:0]
+				if (opc & 0x1000) // opc[12]
+					raw_bits |= 0xe0; // sign-ex imm[31:5]
+				const int8_t imm = raw_bits;
+
+				const uint8_t rsd = ((opc >> 7) & 7) + 8; // opc[9:7]
+				return new Candi(imm, rsd);
+
+			}
+			if (op_11_10 == 0x0c00) // 11
 			{
 				// rd op= r2
 				const uint8_t rsd = ((opc >> 7) & 7) + 8; // opc[9:7]
