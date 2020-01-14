@@ -214,27 +214,30 @@ private:
 	uint8_t rd_;
 };
 
-/// Compressed Load DWord from Stack Pointer
-class CompLdSp : public Inst
+/// Compressed Load (D)Word from Stack Pointer
+class CompLdwSp : public Inst
 {
 public:
-	CompLdSp(uint64_t imm, uint8_t rd)
+	CompLdwSp(uint64_t imm, uint8_t rd, uint8_t sz)
 	: imm_(imm)
 	, rd_(rd)
+	, sz_(sz)
 	{
 	}
 
 	void execute(ArchState &state) const override
 	{
 		const uint64_t ea = state.getReg(Reg::SP) + imm_;
-		state.setReg(rd_, state.readMem(ea, 8));
+		state.setReg(rd_, state.readMem(ea, sz_));
 		state.incPc(2);
 	}
 
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.LDSP     ";
+		os << "C.L"; // 1 char
+		os << (sz_ == 4 ? 'W' : 'D'); // 2 chars
+		os << std::left << std::setw(MNE_WIDTH-2) << "SP" << ' ';
 		printReg(os, rd_) << " = [r2+" << imm_ << ']';
 		return os.str();
 	}
@@ -242,6 +245,7 @@ public:
 private:
 	uint64_t imm_;
 	uint8_t rd_;
+	uint8_t sz_;
 };
 
 /// Compressed Add Scaled Immediate to SP
@@ -872,6 +876,16 @@ Inst* decode16(uint32_t opc)
 			sft |= (opc >> 7) & 0x20; // opc[12] -> sft[5]
 			return new CompSllI(sft, rd);
 		}
+		else if (o15_12 == 0x4000 || o15_12 == 0x5000) // C.LWSP
+		{
+			// zero extended
+			uint64_t imm = (opc & 0xc) << 4; // opc[3:2] -> imm[7:6]
+			if (opc & 0x1000) // opc[12] -> imm[5]
+				imm |= 0x20;
+			imm |= (opc & 0x60) >> 2; // opc[6:5] -> imm[4:3]
+
+			return new CompLdwSp(imm, rd, 4);
+		}
 		else if (o15_12 == 0x6000 || o15_12 == 0x7000) // C.LDSP
 		{
 			uint64_t imm = (opc & 0x1c) << 4; // opc[4:2] -> imm[8:6]
@@ -879,7 +893,7 @@ Inst* decode16(uint32_t opc)
 				imm |= 0x20;
 			imm |= (opc & 0x60) >> 2; // opc[6:5] -> imm[4:3]
 
-			return new CompLdSp(imm, rd);
+			return new CompLdwSp(imm, rd, 8);
 		}
 		else if (o15_12 == 0x8000) // C.JR and C.MV
 		{
