@@ -968,11 +968,42 @@ private:
 	uint8_t rd_;
 };
 
+/// Jump and Link to register target
 class Jalr : public Inst
 {
 public:
+	Jalr(int32_t imm, uint8_t r1, uint8_t rd)
+	: imm_(imm)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t pc = state.getPc();
+		state.setReg(rd_, pc + 4);
+
+		uint64_t new_pc = state.getReg(r1_) + imm_;
+		if (new_pc & 1)
+			--new_pc; // clear bottom bit
+
+		state.setPc(new_pc);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << std::left << std::setw(MNE_WIDTH) << "JALR"
+		   << ' ' << 'r' << uint32_t(rd_)
+		   << ", r" << uint32_t(r1_) << " + " << imm_;
+		return os.str();
+	}
 
 private:
+	int32_t imm_;
+	uint8_t r1_;
+	uint8_t rd_;
 };
 
 class OpImm : public Inst
@@ -1719,8 +1750,11 @@ Inst* decode32(uint32_t opc)
 
 	case 100: // JALR
 	{
-		//return new Jalr;
-		return nullptr; // TODO
+		uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20] -> imm[11:0]
+		if (imm & 0x800)
+			imm |= 0xf000; // sign ex imm[11]
+		const int16_t s_imm = imm;
+		return new Jalr(s_imm, r1, rd);
 	}
 
 	case 108: // JAL
