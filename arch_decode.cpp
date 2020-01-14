@@ -822,6 +822,7 @@ Inst* decode16(uint32_t opc)
 			if (rd == 2)
 			{
 				uint16_t imm = (opc & 0x18) << 4; // opc[4:3] -> imm[8:7]
+				imm |= (opc & 0x40) ? 0x10 : 0; // opc[6] -> imm[4]
 				imm |= (opc & 0x20) ? 0x40 : 0; // opc[5] -> imm[6]
 				imm |= (opc &    4) ? 0x20 : 0; // opc[2] -> imm[5]
 				if (opc & 0x1000)
