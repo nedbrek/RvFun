@@ -688,6 +688,40 @@ private:
 	uint8_t rsd_;
 };
 
+/// Compressed Jump and Link to Register target
+class CompJalr : public Inst
+{
+public:
+	CompJalr(uint8_t rs)
+	: rs_(rs)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t pc = state.getPc();
+		state.setReg(1, pc + 2); // Link Reg
+
+		uint64_t new_pc = state.getReg(rs_);
+		if (new_pc & 1)
+			--new_pc; // clear bottom bit
+
+		state.setPc(new_pc);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << 'C' << '.'
+		   << std::left << std::setw(MNE_WIDTH) << "JALR"
+		   << " r1, r" << uint32_t(rs_);
+		return os.str();
+	}
+
+private:
+	uint8_t rs_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -904,8 +938,15 @@ Inst* decode16(uint32_t opc)
 		}
 		else if (o15_12 == 0x9000) // C.EBREAK, C.JALR, C.ADD
 		{
-			if (rd != 0 && rs != 0)
-				return new CompAdd(rs, rd);
+			if (rd == 0) // C.EBREAK and C.HINT
+			{
+				return nullptr; // TODO
+			}
+
+			if (rs == 0) // C.JALR
+				return new CompJalr(rd);
+
+			return new CompAdd(rs, rd);
 		}
 		else if (o15_12 == 0xe000 || o15_12 == 0xf000) // C.SDSP
 		{
