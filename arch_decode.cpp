@@ -305,13 +305,14 @@ private:
 	int64_t imm_;
 };
 
-/// Compressed Store DWord to Stack Pointer
-class CompSdSp : public Inst
+/// Compressed Store (D)Word to Stack Pointer
+class CompSdwSp : public Inst
 {
 public:
-	CompSdSp(uint32_t imm, uint8_t rs)
+	CompSdwSp(uint32_t imm, uint8_t rs, uint8_t sz)
 	: imm_(imm)
 	, rs_(rs)
+	, sz_(sz)
 	{
 	}
 
@@ -319,20 +320,23 @@ public:
 	{
 		const uint64_t sp = state.getReg(Reg::SP);
 		const uint64_t val = state.getReg(rs_);
-		state.writeMem(sp + imm_, 8, val);
+		state.writeMem(sp + imm_, sz_, val);
 		state.incPc(2);
 	}
 
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.SDSP     [SP+" << imm_ << "] = r" << uint32_t(rs_);
+		os << "C.S" << (sz_ == 4 ? 'W' : 'D') // 2 chars of mnemonic
+		   << std::left << std::setw(MNE_WIDTH-2) << "SP";
+		os << " [SP+" << imm_ << "] = r" << uint32_t(rs_);
 		return os.str();
 	}
 
 private:
 	uint32_t imm_;
 	uint8_t rs_;
+	uint8_t sz_;
 };
 
 /// Compressed Shift Left Immediate
@@ -949,12 +953,21 @@ Inst* decode16(uint32_t opc)
 
 			return new CompAdd(rs, rd);
 		}
+		else if (o15_12 == 0xc000 || o15_12 == 0xd000) // C.SWSP
+		{
+			uint16_t imm = (opc >> 1) & 0xc0; // opc[8:7] -> imm[7:6]
+
+			const uint16_t low_imm = (opc >> 9) & 0xf; // opc[12:9]
+			imm |= low_imm << 2; // imm[5:2]
+
+			return new CompSdwSp(imm, rs, 4);
+		}
 		else if (o15_12 == 0xe000 || o15_12 == 0xf000) // C.SDSP
 		{
 			uint16_t imm = (opc >> 1) & 0x1c0; // opc[9:7] -> imm[8:6]
 			const uint16_t low_imm = (opc >> 10) & 7; // opc[12:10]
 			imm |= low_imm << 3; // imm[5:3]
-			return new CompSdSp(imm, rs);
+			return new CompSdwSp(imm, rs, 8);
 		}
 	}
 	return nullptr;
