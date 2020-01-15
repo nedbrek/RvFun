@@ -88,7 +88,7 @@ uint64_t SparseMem::readMem(uint64_t va, uint32_t sz) const
 	}
 
 	std::cerr << "Access outside of allocated memory: "
-		 << std::hex << va << ' ' << sz << std::endl;
+		 << std::hex << va << std::dec << ' ' << sz << std::endl;
 
 	return ret;
 }
