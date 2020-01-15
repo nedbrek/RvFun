@@ -1763,6 +1763,41 @@ private:
 	uint8_t rd_;
 };
 
+/// Shift Left Logical Immediate Word
+class Slliw : public Inst
+{
+public:
+	Slliw(uint8_t imm, uint8_t r1, uint8_t rd)
+	: imm_(imm)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint32_t vrd = state.getReg(r1_) << imm_;
+		const int64_t svrd = int32_t(vrd); // signed extend
+
+		state.setReg(rd_, svrd);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << std::left << std::setw(MNE_WIDTH) << "SLLIW" << ' ';
+		printReg(os, rd_) << " = r" << uint32_t(r1_) << " << " << uint32_t(imm_);
+		return os.str();
+	}
+
+private:
+	uint8_t imm_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1824,6 +1859,11 @@ Inst* decode32(uint32_t opc)
 			if (imm & 0x800)
 				imm |= 0xf000; // sign ex
 			return new AddIw(imm, r1, rd);
+		}
+		if (op == 1) // SLLIW
+		{
+			const uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
+			return new Slliw(imm, r1, rd);
 		}
 		return nullptr; // TODO
 	}
