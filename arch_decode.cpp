@@ -726,11 +726,54 @@ private:
 	uint8_t rs_;
 };
 
+/// Compressed Shift Right (Logical and Arithmetic)
+class CompShiftRight : public Inst
+{
+public:
+	CompShiftRight(uint8_t imm, uint8_t rsd, bool arith)
+	: imm_(imm)
+	, rsd_(rsd)
+	, arith_(arith)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t val = state.getReg(rsd_);
+		if (arith_)
+			state.setReg(rsd_, int64_t(val) >> imm_);
+		else
+			state.setReg(rsd_, val >> imm_);
+
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		// SR. are 3 chars of mnemonic
+		os << "C.SR"
+		   << (arith_ ? 'A' : 'L')
+		   << std::left << std::setw(MNE_WIDTH-3)
+		   << 'I' << ' ';
+
+		printReg(os, rsd_) << " >>= " << uint32_t(imm_);
+
+		return os.str();
+	}
+
+private:
+	uint8_t imm_;
+	uint8_t rsd_;
+	bool arith_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
 	const uint8_t rd = (opc >> 7) & 0x1f; // opc[11:7]
 	const uint8_t rs = (opc >> 2) & 0x1f; // opc[6:2]
+	const uint8_t rsd = ((opc >> 7) & 7) + 8; // opc[9:7]
 	const uint16_t o15_13 = opc & 0xe000; // opc[15:13]
 
 	if (o10 == 0) // Memory
@@ -844,21 +887,26 @@ Inst* decode16(uint32_t opc)
 		else if (o15_13 == 0x8000)
 		{
 			const uint16_t op_11_10 = opc & 0x0c00; // opc[11:10]
-			if (op_11_10 == 0x0800) // 10 - ANDI
+			if (op_11_10 == 0 || op_11_10 == 0x0400) // 00 - C.SRLI, 01 - C.SRAI
+			{
+				uint8_t imm = (opc >> 2) & 0x1f; // opc[6:2] -> imm[4:0]
+				if (opc & 0x1000) // opc[12] -> imm[5]
+					imm |= 0x20;
+				return new CompShiftRight(imm, rsd, op_11_10 == 0x0400);
+			}
+			if (op_11_10 == 0x0800) // 10 - C.ANDI
 			{
 				uint8_t raw_bits = (opc >> 2) & 0x1f; // opc[6:2] -> imm[4:0]
 				if (opc & 0x1000) // opc[12]
 					raw_bits |= 0xe0; // sign-ex imm[31:5]
 				const int8_t imm = raw_bits;
 
-				const uint8_t rsd = ((opc >> 7) & 7) + 8; // opc[9:7]
 				return new Candi(imm, rsd);
 
 			}
 			if (op_11_10 == 0x0c00) // 11
 			{
 				// rd op= r2
-				const uint8_t rsd = ((opc >> 7) & 7) + 8; // opc[9:7]
 				const uint8_t rs2 = ((opc >> 2) & 7) + 8; // opc[4:2]
 				const uint8_t fun = (opc >> 5) & 3; // opc[6:5]
 				if (opc & 0x1000)
