@@ -1574,6 +1574,10 @@ public:
 		const uint64_t syscall = state.getReg(17); // r17 is syscall id
 		switch (syscall)
 		{
+		case 80: // fstat
+			state.getSys()->fstat(state);
+			break;
+
 		case 174: // getuid
 		case 175: // geteuid
 		case 176: // getgid

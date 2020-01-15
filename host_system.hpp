@@ -19,6 +19,7 @@ public:
 	bool loadElf(const char *prog_name, ArchState &state);
 
 	//---from System
+	void fstat(ArchState &state) override;
 	void sbrk(ArchState &state) override;
 
 private:

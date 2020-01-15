@@ -26,7 +26,7 @@ bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 		return true;
 	}
 	struct stat s;
-	if (fstat(ifd, &s) < 0)
+	if (::fstat(ifd, &s) < 0)
 	{
 		std::cerr << "Failed to stat " << prog_name << std::endl;
 		return true;
@@ -112,6 +112,33 @@ bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 	state.setPc(eh64->e_entry);
 
 	return false;
+}
+
+void HostSystem::fstat(ArchState &state)
+{
+	const uint64_t fd = state.getReg(10);
+	uint64_t path_p = state.getReg(11);
+	//state.getReg(12) stat buf
+
+	std::cerr << " fstat fd=" << fd
+	          << " path='";
+	if (path_p)
+	{
+		uint8_t val = state.readMem(path_p, 1);
+		if (!val)
+			std::cerr << "(null str)";
+
+		while (val)
+		{
+			std::cerr << val;
+
+			++path_p;
+			val = state.readMem(path_p, 1);
+		}
+		std::cerr << '\'';
+	}
+
+	state.setReg(10, 0); // success!
 }
 
 void HostSystem::sbrk(ArchState &state)
