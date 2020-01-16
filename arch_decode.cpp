@@ -1798,6 +1798,59 @@ private:
 	uint8_t rd_;
 };
 
+/// Shift Right Arithmetic and Logical Immediate Word
+class Sraliw : public Inst
+{
+public:
+	Sraliw(uint8_t imm, uint8_t r1, uint8_t rd, bool arith)
+	: imm_(imm)
+	, r1_(r1)
+	, rd_(rd)
+	, arith_(arith)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t val = state.getReg(r1_);
+
+		int32_t tmp;
+		if (arith_)
+		{
+			// calculate signed 32 bit value
+			tmp = int64_t(val) >> imm_;
+		}
+		else
+		{
+			tmp = val >> imm_;
+		}
+		// extend back to 64 bit
+		state.setReg(rd_, int64_t(tmp));
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		// SR. are 3 chars of mnemonic
+		os << "SR"
+		   << (arith_ ? 'A' : 'L')
+		   << std::left << std::setw(MNE_WIDTH-3)
+		   << "IW" << ' ';
+
+		printReg(os, rd_) << " = r" << uint32_t(r1_) << " << " << uint32_t(imm_);
+
+		return os.str();
+	}
+
+private:
+	uint8_t imm_;
+	uint8_t r1_;
+	uint8_t rd_;
+	bool arith_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1865,6 +1918,13 @@ Inst* decode32(uint32_t opc)
 			const uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
 			return new Slliw(imm, r1, rd);
 		}
+		if (op == 5) // SR(AL)IW
+		{
+			const uint16_t imm = (opc >> 20) & 0x01f; // opc[24:20]
+			const bool op30 = opc & 0x40000000; // opc[30]
+			return new Sraliw(imm, r1, rd, op30);
+		}
+
 		return nullptr; // TODO
 	}
 
