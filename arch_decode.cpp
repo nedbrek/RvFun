@@ -1859,6 +1859,42 @@ private:
 	bool arith_;
 };
 
+/// Shift Left Logical Word
+class Sllw : public Inst
+{
+public:
+	Sllw(uint8_t r2, uint8_t r1, uint8_t rd)
+	: r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t amt = state.getReg(r2_) & 0x3f; // use low 6 bits
+		const uint32_t vrd = amt < 31 ? (state.getReg(r1_) << amt) : 0;
+		const int64_t svrd = int32_t(vrd); // signed extend
+
+		state.setReg(rd_, svrd);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << std::left << std::setw(MNE_WIDTH) << "SLLW" << ' ';
+		printReg(os, rd_) << " = r" << uint32_t(r1_) << " << r" << uint32_t(r2_);
+		return os.str();
+	}
+
+private:
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1949,7 +1985,28 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case  56: // op32
+	{
+		if (opc & 0x2000000) // opc[25]
+		{
+			return nullptr; // TODO: DIV/MUL word
+		}
+		//else ADD/Shift word
+		const bool op30 = opc & 0x40000000; // opc[30]
+		if (op == 0) // ADD+SUB
+		{
+			return nullptr; // TODO
+		}
+		if (op == 1) // SLLW
+		{
+			return new Sllw(r2, r1, rd);
+		}
+		if (op == 5) // SR(AL)W
+		{
+			return nullptr; // TODO
+		}
+
 		return nullptr; // TODO
+	}
 
 	case  52: // LUI
 	{
