@@ -1895,6 +1895,56 @@ private:
 	uint8_t rd_;
 };
 
+/// Add and Subtract Word
+class AddSubW : public Inst
+{
+public:
+	AddSubW(uint8_t r2, uint8_t r1, uint8_t rd, bool sub)
+	: r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	, sub_(sub)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t v2 = state.getReg(r2_);
+		uint64_t tmp = state.getReg(r1_);
+		if (sub_)
+			tmp -= v2;
+		else
+			tmp += v2;
+
+		const uint32_t vrd = tmp; // truncate
+		const int64_t svrd = int32_t(vrd); // sign extend
+		state.setReg(rd_, svrd);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		const char op = sub_ ? '-' : '+';
+
+		os << (sub_ ? "SUB" : "ADD") // first 3 chars
+		   << std::left << std::setw(MNE_WIDTH-3) << 'W' << ' ';
+
+		printReg(os, rd_) << " = r" << uint32_t(r1_)
+		   << ' ' << op
+		   << ' ' <<  'r' << uint32_t(r2_);
+
+		return os.str();
+	}
+
+private:
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+	bool sub_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -1994,7 +2044,7 @@ Inst* decode32(uint32_t opc)
 		const bool op30 = opc & 0x40000000; // opc[30]
 		if (op == 0) // ADD+SUB
 		{
-			return nullptr; // TODO
+			return new AddSubW(r2, r1, rd, op30);
 		}
 		if (op == 1) // SLLW
 		{
