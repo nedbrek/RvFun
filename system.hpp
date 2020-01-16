@@ -11,6 +11,7 @@ class System
 public:
 	virtual void fstat(ArchState &state) = 0;
 	virtual void sbrk(ArchState &state) = 0;
+	virtual void write(ArchState &state) = 0;
 };
 }
 

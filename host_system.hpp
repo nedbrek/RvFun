@@ -21,6 +21,7 @@ public:
 	//---from System
 	void fstat(ArchState &state) override;
 	void sbrk(ArchState &state) override;
+	void write(ArchState &state) override;
 
 private:
 	std::unique_ptr<SparseMem> mem_;

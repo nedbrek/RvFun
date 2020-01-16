@@ -1574,6 +1574,10 @@ public:
 		const uint64_t syscall = state.getReg(17); // r17 is syscall id
 		switch (syscall)
 		{
+		case 64: // write
+			state.getSys()->write(state);
+			break;
+
 		case 80: // fstat
 			state.getSys()->fstat(state);
 			break;
@@ -1590,7 +1594,7 @@ public:
 			break;
 
 		default:
-			std::cerr << "Unimplemented system call " << syscall << std::endl;
+			std::cerr << " Unimplemented system call " << syscall << std::endl;
 		}
 
 		state.incPc(4);

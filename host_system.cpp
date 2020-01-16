@@ -164,5 +164,27 @@ void HostSystem::sbrk(ArchState &state)
 	state.setReg(10, top_of_mem_);
 }
 
+void HostSystem::write(ArchState &state)
+{
+	const uint64_t fd = state.getReg(10);
+	uint64_t buf = state.getReg(11);
+	uint64_t ct = state.getReg(12);
+	uint64_t bytes_written = 0;
+	if (fd == 1) // stdout
+	{
+		std::cout << ' ' << '\'';
+		while (ct)
+		{
+			const uint8_t v = state.readMem(buf, 1);
+			std::cout << ' ' << uint32_t(v);
+			++buf;
+			--ct;
+			++bytes_written;
+		}
+		std::cout << '\'';
+	}
+	state.setReg(10, bytes_written);
+}
+
 }
 
