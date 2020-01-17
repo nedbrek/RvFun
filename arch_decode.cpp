@@ -1586,6 +1586,10 @@ public:
 			state.getSys()->fstat(state);
 			break;
 
+		case 93: // exit
+			state.getSys()->exit(state);
+			break;
+
 		case 174: // getuid
 		case 175: // geteuid
 		case 176: // getgid

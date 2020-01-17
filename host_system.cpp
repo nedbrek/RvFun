@@ -114,6 +114,15 @@ bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 	return false;
 }
 
+void HostSystem::exit(ArchState &state)
+{
+	const uint64_t status = state.getReg(10);
+	if (status != 0)
+		std::cerr << "Program exited with non-zero status: " << status << std::endl;
+
+	exited_ = true;
+}
+
 void HostSystem::fstat(ArchState &state)
 {
 	const uint64_t fd = state.getReg(10);

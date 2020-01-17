@@ -17,8 +17,10 @@ public:
 
 	ArchMem* getMem();
 	bool loadElf(const char *prog_name, ArchState &state);
+	bool hadExit() const { return exited_; }
 
 	//---from System
+	void exit(ArchState &state) override;
 	void fstat(ArchState &state) override;
 	void sbrk(ArchState &state) override;
 	void write(ArchState &state) override;
@@ -26,6 +28,7 @@ public:
 private:
 	std::unique_ptr<SparseMem> mem_;
 	uint64_t top_of_mem_ = 0;
+	bool exited_ = false;
 };
 
 }

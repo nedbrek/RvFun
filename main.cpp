@@ -54,6 +54,12 @@ int main(int argc, char **argv)
 	uint64_t icount = 0;
 	while (1)
 	{
+		if (host.hadExit())
+		{
+			std::cout << "Program exited." << std::endl;
+			return 0;
+		}
+
 		const uint64_t pc = state.getPc();
 		const uint16_t opc = state.readMem(pc, 2);
 		uint32_t opc_sz = 2;
