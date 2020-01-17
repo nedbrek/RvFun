@@ -1954,6 +1954,83 @@ private:
 	bool sub_;
 };
 
+/// Multiply and Divide Word
+class MulDivW : public Inst
+{
+public:
+	MulDivW(uint8_t op, uint8_t r2, uint8_t r1, uint8_t rd)
+	: op_(op)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint32_t v2 = state.getReg(r2_);
+		const uint32_t v1 = state.getReg(r1_);
+		int32_t val = 0;
+
+		switch (op_)
+		{
+		case 0: // MULW
+			val = int32_t(v1) * int32_t(v2);
+			break;
+
+		case 4: // DIVW
+			if (v2 != 0)
+				val = int32_t(v1) / int32_t(v2);
+			break;
+
+		case 5: // DIVUW
+			if (v2 != 0)
+				val = v1 / v2;
+			break;
+
+		case 6: // REMW
+			if (v2 != 0)
+				val = int32_t(v1) % int32_t(v2);
+			break;
+
+		case 7: // REMUW
+			if (v2 != 0)
+				val = v1 % v2;
+			break;
+		}
+
+		state.setReg(rd_, int64_t(val)); // sign extend
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << std::left << std::setw(MNE_WIDTH);
+		char op = ' ';
+		switch (op_)
+		{
+		case 0: os << "MULW"; op = '*'; break;
+		case 4: os << "DIVW"; op = '/'; break;
+		case 5: os << "DIVUW"; op = '/'; break;
+		case 6: os << "REMW"; op = '%'; break;
+		case 7: os << "REMUW"; op = '%'; break;
+		}
+		os << ' ';
+
+		printReg(os, rd_) << " = r" << uint32_t(r1_) << ' ' << op
+		   << ' ' << 'r' << uint32_t(r2_);
+
+		return os.str();
+	}
+
+private:
+	uint8_t op_;
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -2047,7 +2124,7 @@ Inst* decode32(uint32_t opc)
 	{
 		if (opc & 0x2000000) // opc[25]
 		{
-			return nullptr; // TODO: DIV/MUL word
+			return new MulDivW(op, r2, r1, rd); // DIV/MUL word
 		}
 		//else ADD/Shift word
 		const bool op30 = opc & 0x40000000; // opc[30]
