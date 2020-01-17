@@ -173,6 +173,46 @@ void HostSystem::sbrk(ArchState &state)
 	state.setReg(10, top_of_mem_);
 }
 
+void HostSystem::uname(ArchState &state)
+{
+	const uint64_t buf = state.getReg(10);
+	if (buf == 0)
+	{
+		state.setReg(10, -1); // bad buf
+		return;
+	}
+
+	constexpr uint32_t UTS_LEN = 65;
+	constexpr uint32_t NUM_FIELDS = 6;
+	// zero buf
+	for (uint32_t i = 0; i < UTS_LEN*NUM_FIELDS; ++i)
+	{
+		state.writeMem(buf+i, 1, 0);
+	}
+
+	// first member: system name
+	const std::string sysname("Linux");
+	for (uint32_t i = 0; i < sysname.size(); ++i)
+	{
+		state.writeMem(buf+i, 1, sysname[i]);
+	}
+
+	// second member: node name
+	// buf+UTS_LEN: leave blank
+
+	// third member: release
+	const std::string release("4.4.0");
+	for (uint32_t i = 0; i < release.size(); ++i)
+	{
+		state.writeMem(buf+i+2*UTS_LEN, 1, release[i]);
+	}
+
+	// leave rest blank (TODO: if anyone cares)
+	// version, machine, domainname
+
+	state.setReg(10, 0); // success
+}
+
 void HostSystem::write(ArchState &state)
 {
 	const uint64_t fd = state.getReg(10);

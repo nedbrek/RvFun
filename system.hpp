@@ -12,6 +12,7 @@ public:
 	virtual void exit(ArchState &state) = 0;
 	virtual void fstat(ArchState &state) = 0;
 	virtual void sbrk(ArchState &state) = 0;
+	virtual void uname(ArchState &state) = 0;
 	virtual void write(ArchState &state) = 0;
 };
 }

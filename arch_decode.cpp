@@ -1590,6 +1590,10 @@ public:
 			state.getSys()->exit(state);
 			break;
 
+		case 160: // uname
+			state.getSys()->uname(state);
+			break;
+
 		case 174: // getuid
 		case 175: // geteuid
 		case 176: // getgid
