@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <iostream>
+#include <sstream>
 
 namespace rvfun
 {
@@ -19,7 +20,7 @@ ArchMem* HostSystem::getMem() { return mem_.get(); }
 
 bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 {
-	const int ifd = open(prog_name, O_RDONLY);
+	const int ifd = ::open(prog_name, O_RDONLY);
 	if (ifd < 0)
 	{
 		std::cerr << "Failed to open " << prog_name << std::endl;
@@ -162,6 +163,53 @@ void HostSystem::fstat(ArchState &state)
 	}
 
 	state.setReg(10, 0); // success!
+}
+
+void HostSystem::open(ArchState &state)
+{
+	const uint64_t dirfd = state.getReg(10);
+	const uint64_t path = state.getReg(11);
+	const uint64_t flags = state.getReg(12);
+	const uint64_t mode = state.getReg(13);
+
+	if (path == 0)
+	{
+		state.setReg(10, -1); // bad path
+		return;
+	}
+
+	bool bad_chars = false;
+	std::ostringstream pns;
+
+	uint32_t off = 0;
+	uint8_t pval = state.readMem(path+off, 1);
+	while (pval)
+	{
+		if (pval < 32 || pval > 127)
+			bad_chars = true;
+		else
+			pns << pval;
+
+		++off;
+		pval = state.readMem(path+off, 1);
+	}
+
+	const std::string pathname = pns.str();
+	if (pathname == "/dev/tty")
+	{
+		state.setReg(10, 1); // stdout
+		return;
+	}
+
+	std::cerr << " openat " << dirfd << ' ';
+	if (!bad_chars)
+		std::cerr << '\'' << pathname << '\'';
+	else
+		std::cerr << "(bad path)";
+	std:: cerr << ' ' << flags << ' ' << mode;
+
+	const uint32_t new_fd = 3;
+	state.setReg(10, new_fd);
 }
 
 void HostSystem::sbrk(ArchState &state)

@@ -1574,6 +1574,10 @@ public:
 		const uint64_t syscall = state.getReg(17); // r17 is syscall id
 		switch (syscall)
 		{
+		case 56: // openat
+			state.getSys()->open(state);
+			break;
+
 		case 57: // close
 			state.setReg(10, 0); // TODO
 			break;
