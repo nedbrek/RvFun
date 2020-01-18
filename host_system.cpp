@@ -63,27 +63,41 @@ bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 		if (phdr->p_type != PT_LOAD)
 			continue;
 
-		// TODO expand block for alignment?
 		// copy segment to specified VA
-		std::cout << "Load block of size " << phdr->p_filesz;
-		if (phdr->p_filesz < phdr->p_memsz)
+		const auto file_sz = phdr->p_filesz;
+		std::cout << "Load block of size " << file_sz;
+		auto tgt_sz = file_sz; // hopefully 1:1 from file to memory
+		if (phdr->p_memsz > tgt_sz)
+			tgt_sz = phdr->p_memsz;
+
+		// expand block for alignment
+		const uint64_t align_mask = phdr->p_align - 1;
+		const uint64_t end_addr = phdr->p_vaddr + tgt_sz;
+		const uint64_t spill = end_addr & align_mask;
+		if (spill)
+		{
+			// grow target to meet alignment
+			tgt_sz += phdr->p_align - spill;
+		}
+
+		if (file_sz < tgt_sz)
 		{
 			// create bigger block of zeroes
-			uint8_t *block = reinterpret_cast<uint8_t*>(calloc(phdr->p_memsz, 1));
+			uint8_t *block = reinterpret_cast<uint8_t*>(calloc(tgt_sz, 1));
 
 			// copy in what we have
 			memcpy(block, elf_mem + phdr->p_offset, phdr->p_filesz);
 
 			// add it
-			mem_->addBlock(phdr->p_vaddr, phdr->p_memsz, block);
+			mem_->addBlock(phdr->p_vaddr, tgt_sz, block);
 
-			const uint64_t end_of_block = phdr->p_vaddr + phdr->p_memsz - 1;
+			const uint64_t end_of_block = phdr->p_vaddr + tgt_sz - 1;
 			if (end_of_block > top_of_mem_)
 				top_of_mem_ = end_of_block;
 
 			free(block);
 
-			std::cout << '(' << phdr->p_memsz << ')';
+			std::cout << '(' << tgt_sz << ')';
 		}
 		else
 		{
