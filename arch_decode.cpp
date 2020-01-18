@@ -1586,6 +1586,10 @@ public:
 			state.getSys()->write(state);
 			break;
 
+		case 66: // writev
+			state.getSys()->writev(state);
+			break;
+
 		case 80: // fstat
 			state.getSys()->fstat(state);
 			break;

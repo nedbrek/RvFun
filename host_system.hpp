@@ -26,8 +26,12 @@ public:
 	void sbrk(ArchState &state) override;
 	void uname(ArchState &state) override;
 	void write(ArchState &state) override;
+	void writev(ArchState &state) override;
 
-private:
+private: // methods
+	uint64_t writeBuf(ArchState &state, uint64_t buf, uint64_t ct);
+
+private: // data
 	std::unique_ptr<SparseMem> mem_;
 	uint64_t top_of_mem_ = 0;
 	bool exited_ = false;

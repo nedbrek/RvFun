@@ -275,24 +275,67 @@ void HostSystem::uname(ArchState &state)
 	state.setReg(10, 0); // success
 }
 
+uint64_t HostSystem::writeBuf(ArchState &state, uint64_t buf, uint64_t ct)
+{
+	uint64_t bytes_written = 0;
+	std::cout << ' ' << '\'';
+	while (ct)
+	{
+		const uint8_t v = state.readMem(buf, 1);
+		std::cout << ' ' << uint32_t(v);
+		++buf;
+		--ct;
+		++bytes_written;
+	}
+	std::cout << '\'';
+	return bytes_written;
+}
+
 void HostSystem::write(ArchState &state)
 {
 	const uint64_t fd = state.getReg(10);
-	uint64_t buf = state.getReg(11);
-	uint64_t ct = state.getReg(12);
+	const uint64_t buf = state.getReg(11);
+	const uint64_t ct = state.getReg(12);
+
 	uint64_t bytes_written = 0;
 	if (fd == 1) // stdout
 	{
-		std::cout << ' ' << '\'';
-		while (ct)
+		bytes_written = writeBuf(state, buf, ct);
+	}
+	else
+	{
+		std::cerr << " Write to fd " << fd << std::endl;
+	}
+	state.setReg(10, bytes_written);
+}
+
+void HostSystem::writev(ArchState &state)
+{
+	uint64_t iovec = state.getReg(11);
+	if (iovec == 0)
+	{
+		state.setReg(10, -1);
+		return;
+	}
+
+	const uint64_t fd = state.getReg(10);
+	uint64_t iovct = state.getReg(12);
+	uint64_t bytes_written = 0;
+	if (fd == 1) // stdout
+	{
+		while (iovct)
 		{
-			const uint8_t v = state.readMem(buf, 1);
-			std::cout << ' ' << uint32_t(v);
-			++buf;
-			--ct;
-			++bytes_written;
+			const uint64_t buf = state.readMem(iovec, 8);
+			const uint64_t ct = state.readMem(iovec+8, 8);
+			bytes_written += writeBuf(state, buf, ct);
+
+			--iovct;
+			iovec += 16;
 		}
-		std::cout << '\'';
+	}
+	else
+	{
+		std::cerr << " Writev to fd " << fd << std::endl;
 	}
 	state.setReg(10, bytes_written);
 }
