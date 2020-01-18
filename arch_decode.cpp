@@ -2031,6 +2031,70 @@ private:
 	uint8_t rd_;
 };
 
+/// Load-reserve and Store-conditional
+class LoadReserveStoreCond : public Inst
+{
+public:
+	LoadReserveStoreCond(bool is_store, bool dword, bool aq, bool rl, uint8_t r2, uint8_t ar, uint8_t rd)
+	: is_store_(is_store)
+	, dword_(dword)
+	, aq_(aq)
+	, rl_(rl)
+	, r2_(r2)
+	, ar_(ar)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		// TODO monitor reservation
+		const uint16_t sz = dword_ ? 8 : 4;
+		const uint64_t addr = state.getReg(ar_);
+		if (is_store_)
+		{
+			const uint64_t write_val = state.getReg(r2_);
+			state.writeMem(addr, sz, write_val);
+			state.setReg(rd_, 0); // success!
+		}
+		else
+		{
+			state.setReg(rd_, state.readMem(addr, sz));
+		}
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		// hard to predict length of mnemonic
+		std::ostringstream mne;
+		mne << (is_store_ ? "SC" : "LR") << '.' << (dword_ ? 'D' : 'W');
+		if (aq_)
+			mne << ".aq";
+		if (rl_)
+			mne << ".rl";
+
+		std::ostringstream os;
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+
+		printReg(os, rd_) << " = [r" << uint32_t(ar_) << ']';
+		if (is_store_)
+			os << "<- r" << uint32_t(r2_);
+
+		return os.str();
+	}
+
+private:
+	bool is_store_; ///< else load
+	bool dword_; ///< size of memory operation
+	bool aq_; ///< acquire semantic
+	bool rl_; ///< release semantic
+	uint8_t r2_; ///< store data register
+	uint8_t ar_; ///< address register
+	uint8_t rd_; ///< destination (for load and store)
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -2105,6 +2169,21 @@ Inst* decode32(uint32_t opc)
 			return new Sraliw(imm, r1, rd, op30);
 		}
 
+		return nullptr; // TODO
+	}
+
+	case  44: // AMO (atomics)
+	{
+		const bool dword = op == 3; // else word
+		const bool o27 = (opc & 0x08000000) != 0; // opc[27]
+		const bool aq  = (opc & 0x04000000) != 0; // opc[26]
+		const bool rl  = (opc & 0x02000000) != 0; // opc[25]
+
+		if (opc & 0x10000000) // opc[28]
+		{
+			// Load-reserve (LR) + Store-conditional (SC)
+			return new LoadReserveStoreCond(o27, dword, aq, rl, r2, r1, rd);
+		}
 		return nullptr; // TODO
 	}
 
@@ -2192,9 +2271,6 @@ Inst* decode32(uint32_t opc)
 
 		return new Jal(imm, rd);
 	}
-
-	case  44: // AMO (atomics)
-		return nullptr; // TODO
 
 	case 112: // system
 	{
