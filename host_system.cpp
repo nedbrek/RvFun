@@ -263,7 +263,7 @@ void HostSystem::uname(ArchState &state)
 	// buf+UTS_LEN: leave blank
 
 	// third member: release
-	const std::string release("4.4.0");
+	const std::string release("4.15.0");
 	for (uint32_t i = 0; i < release.size(); ++i)
 	{
 		state.writeMem(buf+i+2*UTS_LEN, 1, release[i]);
