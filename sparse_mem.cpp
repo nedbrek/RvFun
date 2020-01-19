@@ -114,7 +114,7 @@ void SparseMem::writeMem(uint64_t va, uint32_t sz, uint64_t val)
 	}
 
 	std::cerr << "Write access outside of allocated memory: "
-		 << std::hex << va << ' ' << sz << std::endl;
+		 << std::hex << va << std::dec << ' ' << sz << std::endl;
 }
 
 }
