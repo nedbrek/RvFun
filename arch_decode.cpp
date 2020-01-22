@@ -1599,6 +1599,7 @@ public:
 			break;
 
 		case 93: // exit
+		case 94: // exit_group (TODO: exit all threads)
 			state.getSys()->exit(state);
 			break;
 
