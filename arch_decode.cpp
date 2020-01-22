@@ -2107,6 +2107,116 @@ private:
 	uint8_t rd_; ///< destination (for load and store)
 };
 
+/// Atomic Operation
+class AmoOp : public Inst
+{
+public:
+	AmoOp(uint8_t o31_27, bool dword, bool aq, bool rel, uint8_t r2, uint8_t r1, uint8_t rd)
+	: o31_27_(o31_27)
+	, dword_(dword)
+	, aq_(aq)
+	, rel_(rel)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t ea = state.getReg(r1_);
+		const uint64_t vr2 = state.getReg(r2_);
+		const uint16_t sz = dword_ ? 8 : 4;
+		// TODO: acquire and release
+
+		// initial value in memory (not needed for SWAP into r0)
+		const uint64_t init_val =
+		   (o31_27_ == 1 && rd_ == 0) ? 0 : state.readMem(ea, sz);
+
+		uint64_t val = 0; // value to store back
+
+		// TODO: word versions need to sign extend to register
+		switch (o31_27_)
+		{
+		case 0: val = init_val + vr2; break; // ADD
+		case 1: val = vr2; break; // SWAP
+		//case 2: // LR
+		//case 3: // SC
+		case 4: val = init_val ^ vr2; break; // XOR
+		// 5..7 rsvd
+		case 8: val = init_val | vr2; break; // OR
+		// 9..1 rsvd
+		case 12: val = init_val & vr2; break; // AND
+		// 13..15 rsvd
+		case 16: val = std::min(int64_t(init_val), int64_t(vr2)); break; // MIN
+		// 17..19 rsvd
+		case 20: val = std::max(int64_t(init_val), int64_t(vr2)); break; // MAX
+		// 21..23 rsvd
+		case 24: val = std::min(init_val, vr2); break; // MINU
+		// 25..27 rsvd
+		case 28: val = std::max(init_val, vr2); break; // MAXU
+		// 29..31 rsvd
+		}
+
+		state.setReg(rd_, init_val);
+		state.writeMem(ea, sz, val);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		// hard to predict length of mnemonic
+		std::ostringstream mne;
+		mne << "AMO";
+		switch (o31_27_)
+		{
+		case 0: mne << "ADD"; break;
+		case 1: mne << "SWAP"; break;
+		//case 2: // LR
+		//case 3: // SC
+		case 4: mne << "XOR"; break;
+		// 5..7 rsvd
+		case 8: mne << "OR"; break;
+		// 9..1 rsvd
+		case 12: mne << "AND"; break;
+		// 13..15 rsvd
+		case 16: mne << "MIN"; break;
+		// 17..19 rsvd
+		case 20: mne << "MAX"; break;
+		// 21..23 rsvd
+		case 24: mne << "MINU"; break;
+		// 25..27 rsvd
+		case 28: mne << "MAXU"; break;
+		// 29..31 rsvd
+
+		default: mne << "(ERR)";
+		}
+		mne << '.' << (dword_ ? 'D' : 'W');
+
+		if (aq_)
+			mne << ".aq";
+		if (rel_)
+			mne << ".rl";
+
+		std::ostringstream os;
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+
+		printReg(os, rd_) << " = [r" << uint32_t(r1_) << "], r" << uint32_t(r2_);
+
+		return os.str();
+	}
+
+private:
+	uint8_t o31_27_;
+	bool dword_;
+	bool aq_;
+	bool rel_;
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -2189,14 +2299,16 @@ Inst* decode32(uint32_t opc)
 		const bool dword = op == 3; // else word
 		const bool o27 = (opc & 0x08000000) != 0; // opc[27]
 		const bool aq  = (opc & 0x04000000) != 0; // opc[26]
-		const bool rl  = (opc & 0x02000000) != 0; // opc[25]
+		const bool rel = (opc & 0x02000000) != 0; // opc[25]
 
 		if (opc & 0x10000000) // opc[28]
 		{
 			// Load-reserve (LR) + Store-conditional (SC)
-			return new LoadReserveStoreCond(o27, dword, aq, rl, r2, r1, rd);
+			return new LoadReserveStoreCond(o27, dword, aq, rel, r2, r1, rd);
 		}
-		return nullptr; // TODO
+		// atomic op
+		const uint8_t o31_27 = (opc >> 27) & 0x1f; // opc[31:27]
+		return new AmoOp(o31_27, dword, aq, rel, r2, r1, rd);
 	}
 
 	case  48: // op reg,reg
