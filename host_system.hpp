@@ -23,6 +23,7 @@ public:
 	void exit(ArchState &state) override;
 	void fstat(ArchState &state) override;
 	void open(ArchState &state) override;
+	void readlinkat(ArchState &state) override;
 	void sbrk(ArchState &state) override;
 	void uname(ArchState &state) override;
 	void write(ArchState &state) override;

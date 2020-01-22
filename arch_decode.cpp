@@ -1590,6 +1590,10 @@ public:
 			state.getSys()->writev(state);
 			break;
 
+		case 78: // readlinkat
+			state.getSys()->readlinkat(state);
+			break;
+
 		case 80: // fstat
 			state.getSys()->fstat(state);
 			break;

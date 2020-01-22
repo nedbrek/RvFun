@@ -212,6 +212,62 @@ void HostSystem::open(ArchState &state)
 	state.setReg(10, new_fd);
 }
 
+void HostSystem::readlinkat(ArchState &state)
+{
+	const uint64_t dirfd = state.getReg(10);
+	const uint64_t path = state.getReg(11);
+	const uint64_t buf = state.getReg(12);
+	const uint64_t buf_sz = state.getReg(13);
+
+	if (!path || !buf || !buf_sz)
+	{
+		state.setReg(10, -1); // error: null ptr
+		return;
+	}
+
+	std::ostringstream pns; // pathname string
+	uint32_t off = 0;
+	char pval = state.readMem(path + off, 1);
+	bool bad_chars = false;
+	while (pval)
+	{
+		if (pval < 32 || pval > 127)
+			bad_chars = true;
+		else
+			pns << pval;
+
+		++off;
+		pval = state.readMem(path + off, 1);
+	}
+
+	const std::string pathname = pns.str();
+
+	// TODO: /proc/self/exe should resolve to program name (full path)
+	if (pathname != "/proc/self/exe")
+	{
+		std::cerr << " readlinkat " << dirfd << ' ';
+		if (!bad_chars)
+			std::cerr << '\'' << pathname << '\'';
+		else
+			std::cerr << "(bad path)";
+		std:: cerr << ' ' << buf << ' ' << buf_sz;
+
+		uint32_t bytes_copied = 0;
+		state.setReg(10, bytes_copied);
+		return;
+	}
+
+	off = 0;
+	for (const auto &v : pathname)
+	{
+		state.writeMem(buf + off, 1, v);
+		++off;
+		if (off == buf_sz)
+			break;
+	}
+	state.setReg(10, off);
+}
+
 void HostSystem::sbrk(ArchState &state)
 {
 	const uint64_t new_top_of_mem = state.getReg(15);
