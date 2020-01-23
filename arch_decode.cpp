@@ -29,6 +29,10 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	// no sources
+	std::vector<RegDep> srcs() const override { return {}; }
+
 	void execute(ArchState &state) const override
 	{
 		state.setReg(rd_, imm());
@@ -64,6 +68,9 @@ public:
 	, rsd_(rsd)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rsd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rsd_), RegNum(r2_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -117,6 +124,9 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rsd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rsd_), RegNum(r2_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint32_t rs = state.getReg(rsd_);
@@ -167,6 +177,10 @@ public:
 	{
 	}
 
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rd_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t new_pc = state.getReg(rd_);
@@ -194,6 +208,9 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rs_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -224,6 +241,9 @@ public:
 	, sz_(sz)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(Reg::SP)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -258,6 +278,9 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(Reg::SP)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t sp = state.getReg(Reg::SP);
@@ -287,6 +310,9 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(Reg::SP)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(Reg::SP)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t sp = state.getReg(Reg::SP);
@@ -315,6 +341,14 @@ public:
 	, sz_(sz)
 	{
 	}
+
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+
+	// sources are EA and store data
+	std::vector<RegDep> srcs() const override { return {RegNum(Reg::SP), RegNum(rs_)}; }
+	// help consumers figure out which is store data
+	RegDep stdSrc() const override { return RegNum(rs_); }
 
 	void execute(ArchState &state) const override
 	{
@@ -349,6 +383,10 @@ public:
 	{
 	}
 
+	// read-modify-write
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rd_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t val = state.getReg(rd_);
@@ -378,6 +416,10 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	// reg += reg
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rd_), RegNum(rs_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -412,6 +454,10 @@ public:
 	{
 	}
 
+	// reg += imm
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rd_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t vrd = state.getReg(rd_);
@@ -443,6 +489,10 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	// reg += imm
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rd_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -477,6 +527,11 @@ public:
 	, rs_(rs)
 	{
 	}
+
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+
+	std::vector<RegDep> srcs() const override { return {RegNum(rs_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -518,6 +573,9 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rs_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t ea = state.getReg(rs_) + imm_;
@@ -548,6 +606,10 @@ public:
 	{
 	}
 
+	// no regs
+	std::vector<RegDep> dsts() const override { return {}; }
+	std::vector<RegDep> srcs() const override { return {}; }
+
 	void execute(ArchState &state) const override
 	{
 		// unconditional
@@ -576,6 +638,14 @@ public:
 	, sz_(sz)
 	{
 	}
+
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+
+	std::vector<RegDep> srcs() const override { return {RegNum(rbase_), RegNum(rsrc_)}; }
+
+	// help consumers figure out which is store data
+	RegDep stdSrc() const override { return RegNum(rsrc_); }
 
 	void execute(ArchState &state) const override
 	{
@@ -612,6 +682,10 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	// no src
+	std::vector<RegDep> srcs() const override { return {}; }
+
 	void execute(ArchState &state) const override
 	{
 		state.setReg(rd_, int64_t(imm_));
@@ -642,6 +716,9 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rbase_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t base = state.getReg(rbase_) + imm_;
@@ -663,6 +740,7 @@ private:
 	uint8_t rd_;
 };
 
+/// Compressed And Immediate
 class Candi : public Inst
 {
 public:
@@ -671,6 +749,10 @@ public:
 	, rsd_(rsd)
 	{
 	}
+
+	/// reg &= imm
+	std::vector<RegDep> dsts() const override { return {RegNum(rsd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rsd_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -701,10 +783,13 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(Reg::RA)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rs_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t pc = state.getPc();
-		state.setReg(1, pc + 2); // Link Reg
+		state.setReg(Reg::RA, pc + 2); // Link Reg
 
 		uint64_t new_pc = state.getReg(rs_);
 		if (new_pc & 1)
@@ -736,6 +821,10 @@ public:
 	, arith_(arith)
 	{
 	}
+
+	// reg >>= imm
+	std::vector<RegDep> dsts() const override { return {RegNum(rsd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rsd_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1031,6 +1120,10 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	// no source
+	std::vector<RegDep> srcs() const override { return {}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t pc = state.getPc();
@@ -1066,6 +1159,10 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	// no sources
+	std::vector<RegDep> srcs() const override { return {}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t pc = state.getPc();
@@ -1096,6 +1193,10 @@ public:
 	{
 	}
 
+	// rd_ = PC+4; PC = r1_ + imm
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t pc = state.getPc();
@@ -1123,6 +1224,7 @@ private:
 	uint8_t rd_;
 };
 
+/// Register Op Immediate
 class OpImm : public Inst
 {
 public:
@@ -1133,6 +1235,10 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	// rd = r1 op imm
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1229,6 +1335,10 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	// no sources
+	std::vector<RegDep> srcs() const override { return {}; }
+
 	void execute(ArchState &state) const override
 	{
 		state.setReg(rd_, imm_);
@@ -1259,6 +1369,10 @@ public:
 	, r1_(r1)
 	{
 	}
+
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1320,6 +1434,12 @@ public:
 	{
 	}
 
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
+	// help consumers figure out which is store data
+	RegDep stdSrc() const override { return RegNum(r2_); }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t ea = state.getReg(r1_) + imm_;
@@ -1361,6 +1481,9 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1444,6 +1567,9 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1538,6 +1664,9 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint32_t vrd = state.getReg(r1_) + imm_;
@@ -1568,6 +1697,10 @@ public:
 	Ecall()
 	{
 	}
+
+	// no standard dependencies
+	std::vector<RegDep> dsts() const override { return {}; }
+	std::vector<RegDep> srcs() const override { return {}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1632,6 +1765,7 @@ public:
 	}
 };
 
+/// Alu op with two register sources
 class OpRegReg : public Inst
 {
 public:
@@ -1643,6 +1777,9 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1804,6 +1941,9 @@ public:
 	{
 	}
 
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint32_t vrd = state.getReg(r1_) << imm_;
@@ -1839,6 +1979,9 @@ public:
 	, arith_(arith)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1892,6 +2035,10 @@ public:
 	{
 	}
 
+	// rd = r1 << r2
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t amt = state.getReg(r2_) & 0x3f; // use low 6 bits
@@ -1928,6 +2075,10 @@ public:
 	, sub_(sub)
 	{
 	}
+
+	// rd = r1 +/- r2
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -1978,6 +2129,9 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
 
 	void execute(ArchState &state) const override
 	{
@@ -2059,6 +2213,30 @@ public:
 	{
 	}
 
+	// always write rd
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+
+	std::vector<RegDep> srcs() const override
+	{
+		std::vector<RegDep> ret;
+		ret.emplace_back(RegNum(ar_)); // always read address
+
+		if (is_store_)
+			ret.emplace_back(RegNum(r2_)); // store data
+
+		return ret;
+	}
+
+	// help consumers figure out which is store data
+	RegDep stdSrc() const override
+	{
+		if (is_store_)
+			return RegNum(r2_);
+		//else load
+
+		return RegDep(RegNum(0), RegFile::NONE);
+	}
+
 	void execute(ArchState &state) const override
 	{
 		// TODO monitor reservation
@@ -2122,6 +2300,12 @@ public:
 	, rd_(rd)
 	{
 	}
+
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
+
+	// actually r2_ op mem
+	RegDep stdSrc() const override { return RegNum(r2_); }
 
 	void execute(ArchState &state) const override
 	{

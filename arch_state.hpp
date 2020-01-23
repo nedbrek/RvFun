@@ -32,7 +32,8 @@ namespace Reg
 {
 	enum
 	{
-		SP = 2
+		RA = 1, ///< Return Address (aka Link Register)
+		SP = 2  ///< Stack Pointer
 	};
 }
 
