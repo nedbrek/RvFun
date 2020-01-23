@@ -16,6 +16,10 @@ HostSystem::HostSystem()
 {
 }
 
+HostSystem::~HostSystem()
+{
+}
+
 ArchMem* HostSystem::getMem() { return mem_.get(); }
 
 bool HostSystem::loadElf(const char *prog_name, ArchState &state)

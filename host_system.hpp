@@ -14,6 +14,7 @@ class HostSystem : public System
 {
 public:
 	HostSystem();
+	~HostSystem();
 
 	ArchMem* getMem();
 	bool loadElf(const char *prog_name, ArchState &state);
