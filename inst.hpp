@@ -51,6 +51,23 @@ public:
 
 	///@return assembly string of this
 	virtual std::string disasm() const = 0;
+
+	enum OpType
+	{
+		OT_MOV, ///< register to register (execute at rename)
+		OT_MOVI, ///< register gets immediate
+		OT_ALU,
+		OT_SHIFT,
+		OT_MUL,
+		OT_DIV,
+		OT_FP, // TODO: more FP types
+		OT_LOAD,
+		OT_STORE,
+		OT_ATOMIC,
+		OT_BRANCH,
+		OT_SYSTEM
+	};
+	virtual OpType opType() const = 0;
 };
 
 Inst* decode16(uint32_t opc);

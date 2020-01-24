@@ -47,6 +47,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_LOAD; }
+
 private: // methods
 	int64_t imm() const
 	{
@@ -107,6 +109,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_ALU; }
+
 private:
 	uint8_t fun_;
 	uint8_t r2_;
@@ -162,6 +166,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_ALU; }
+
 private:
 	uint8_t fun_;
 	uint8_t r2_;
@@ -195,6 +201,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_BRANCH; }
+
 private:
 	uint8_t rd_;
 };
@@ -225,6 +233,8 @@ public:
 		printReg(os, rd_) << " = r" << uint32_t(rs_);
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_MOV; }
 
 private:
 	uint8_t rs_;
@@ -262,6 +272,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_LOAD; }
+
 private:
 	uint64_t imm_;
 	uint8_t rd_;
@@ -296,6 +308,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_ALU; }
+
 private:
 	uint64_t imm_;
 	uint8_t rd_;
@@ -326,6 +340,8 @@ public:
 		os << "C.ADDI16SP SP += " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_ALU; }
 
 private:
 	int64_t imm_;
@@ -367,6 +383,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_STORE; }
+
 private:
 	uint32_t imm_;
 	uint8_t rs_;
@@ -401,6 +419,8 @@ public:
 		printReg(os, rd_) << " <<= " << uint32_t(sft_);
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_SHIFT; }
 
 private:
 	uint8_t sft_;
@@ -439,6 +459,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_ALU; }
+
 private:
 	uint8_t rs_;
 	uint8_t rd_;
@@ -474,6 +496,8 @@ public:
 		printReg(os, rd_) << " += " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_ALU; }
 
 private:
 	int64_t imm_;
@@ -511,6 +535,8 @@ public:
 		printReg(os, rd_) << " += " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_ALU; }
 
 private:
 	int64_t imm_;
@@ -556,6 +582,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_BRANCH; }
+
 private:
 	bool eq_;
 	int64_t imm_;
@@ -591,6 +619,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_LOAD; }
+
 private:
 	uint64_t imm_;
 	uint8_t rs_;
@@ -622,6 +652,8 @@ public:
 		os << "C.J        " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_BRANCH; }
 
 private:
 	int64_t imm_;
@@ -665,6 +697,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_STORE; }
+
 private:
 	uint8_t imm_;
 	uint8_t rbase_;
@@ -700,6 +734,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_MOVI; }
+
 private:
 	int32_t imm_;
 	uint8_t rd_;
@@ -733,6 +769,8 @@ public:
 		printReg(os, rd_) << " = [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << ']';
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_LOAD; }
 
 private:
 	uint8_t imm_;
@@ -768,6 +806,8 @@ public:
 		printReg(os, rsd_) << " &= " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_ALU; }
 
 private:
 	int32_t imm_;
@@ -806,6 +846,8 @@ public:
 		   << " r1, r" << uint32_t(rs_);
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_BRANCH; }
 
 private:
 	uint8_t rs_;
@@ -850,6 +892,8 @@ public:
 
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_SHIFT; }
 
 private:
 	uint8_t imm_;
@@ -1144,6 +1188,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_MOVI; }
+
 private:
 	int64_t imm_;
 	uint8_t rd_;
@@ -1176,6 +1222,8 @@ public:
 		os << "JAL      r" << uint32_t(rd_) << ", " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_BRANCH; }
 
 private:
 	int64_t imm_;
@@ -1217,6 +1265,8 @@ public:
 		   << ", r" << uint32_t(r1_) << " + " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_BRANCH; }
 
 private:
 	int32_t imm_;
@@ -1318,6 +1368,13 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override
+	{
+		if (op_ == 1 || op_ == 5)
+			return OT_SHIFT;
+		return OT_ALU;
+	}
+
 private:
 	uint8_t op_;
 	int64_t imm_;
@@ -1352,6 +1409,8 @@ public:
 		printReg(os, rd_) << " = " << imm_;
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_MOVI; }
 
 private:
 	int64_t imm_;
@@ -1415,6 +1474,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_BRANCH; }
+
 private:
 	int64_t imm_;
 	uint8_t op_;
@@ -1462,6 +1523,8 @@ public:
 
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_STORE; }
 
 private:
 	uint8_t sz_;
@@ -1548,6 +1611,8 @@ public:
 
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_LOAD; }
 
 private:
 	uint8_t op_;
@@ -1646,6 +1711,11 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override
+	{
+		return (op_ < 4) ? OT_MUL : OT_DIV;
+	}
+
 private:
 	uint8_t op_;
 	uint8_t r2_;
@@ -1685,12 +1755,15 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_ALU; }
+
 private:
 	int16_t imm_;
 	uint8_t r1_;
 	uint8_t rd_;
 };
 
+/// Environment (Operating system) Call
 class Ecall : public Inst
 {
 public:
@@ -1763,6 +1836,8 @@ public:
 	{
 		return "ECALL";
 	}
+
+	OpType opType() const override { return OT_SYSTEM; }
 };
 
 /// Alu op with two register sources
@@ -1922,6 +1997,13 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override
+	{
+		if (op_ == 1 || op_ == 5)
+			return OT_SHIFT;
+		return OT_ALU;
+	}
+
 private:
 	uint8_t op_;
 	bool op30_;
@@ -1961,6 +2043,8 @@ public:
 		printReg(os, rd_) << " = r" << uint32_t(r1_) << " << " << uint32_t(imm_);
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_SHIFT; }
 
 private:
 	uint8_t imm_;
@@ -2017,6 +2101,8 @@ public:
 		return os.str();
 	}
 
+	OpType opType() const override { return OT_SHIFT; }
+
 private:
 	uint8_t imm_;
 	uint8_t r1_;
@@ -2057,6 +2143,8 @@ public:
 		printReg(os, rd_) << " = r" << uint32_t(r1_) << " << r" << uint32_t(r2_);
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_SHIFT; }
 
 private:
 	uint8_t r2_;
@@ -2110,6 +2198,8 @@ public:
 
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_ALU; }
 
 private:
 	uint8_t r2_;
@@ -2189,6 +2279,11 @@ public:
 		   << ' ' << 'r' << uint32_t(r2_);
 
 		return os.str();
+	}
+
+	OpType opType() const override
+	{
+		return op_ == 0 ? OT_MUL : OT_DIV;
 	}
 
 private:
@@ -2274,6 +2369,11 @@ public:
 			os << "<- r" << uint32_t(r2_);
 
 		return os.str();
+	}
+
+	OpType opType() const override
+	{
+		return is_store_ ? OT_STORE : OT_LOAD;
 	}
 
 private:
@@ -2391,6 +2491,8 @@ public:
 
 		return os.str();
 	}
+
+	OpType opType() const override { return OT_ATOMIC; }
 
 private:
 	uint8_t o31_27_;
