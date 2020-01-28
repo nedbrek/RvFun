@@ -33,6 +33,8 @@ public:
 	// no sources
 	std::vector<RegDep> srcs() const override { return {}; }
 
+	uint32_t opSize() const override { return 1; } // one byte immediate
+
 	void execute(ArchState &state) const override
 	{
 		state.setReg(rd_, imm());
@@ -47,7 +49,7 @@ public:
 		return os.str();
 	}
 
-	OpType opType() const override { return OT_LOAD; }
+	OpType opType() const override { return OT_MOVI; }
 
 private: // methods
 	int64_t imm() const
@@ -73,6 +75,8 @@ public:
 
 	std::vector<RegDep> dsts() const override { return {RegNum(rsd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(rsd_), RegNum(r2_)}; }
+
+	uint32_t opSize() const override { return 8; }
 
 	void execute(ArchState &state) const override
 	{
@@ -130,6 +134,8 @@ public:
 
 	std::vector<RegDep> dsts() const override { return {RegNum(rsd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(rsd_), RegNum(r2_)}; }
+
+	uint32_t opSize() const override { return 4; }
 
 	void execute(ArchState &state) const override
 	{
@@ -255,9 +261,12 @@ public:
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(Reg::SP)}; }
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(Reg::SP) + imm_; }
+	uint32_t opSize() const override { return sz_; }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t ea = state.getReg(Reg::SP) + imm_;
+		const uint64_t ea = calcEa(state);
 		state.setReg(rd_, state.readMem(ea, sz_));
 		state.incPc(2);
 	}
@@ -366,11 +375,13 @@ public:
 	// help consumers figure out which is store data
 	RegDep stdSrc() const override { return RegNum(rs_); }
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(Reg::SP) + imm_; }
+	uint32_t opSize() const override { return sz_; }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t sp = state.getReg(Reg::SP);
 		const uint64_t val = state.getReg(rs_);
-		state.writeMem(sp + imm_, sz_, val);
+		state.writeMem(calcEa(state), sz_, val);
 		state.incPc(2);
 	}
 
@@ -518,6 +529,8 @@ public:
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(rd_)}; }
 
+	uint32_t opSize() const override { return 4; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint32_t vrd = state.getReg(rd_) + imm_;
@@ -604,10 +617,12 @@ public:
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(rs_)}; }
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(rs_) + imm_; }
+	uint32_t opSize() const override { return 8; }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t ea = state.getReg(rs_) + imm_;
-		state.setReg(rd_, state.readMem(ea, 8));
+		state.setReg(rd_, state.readMem(calcEa(state), 8));
 		state.incPc(2);
 	}
 
@@ -679,11 +694,13 @@ public:
 	// help consumers figure out which is store data
 	RegDep stdSrc() const override { return RegNum(rsrc_); }
 
+	virtual uint64_t calcEa(ArchState &state) const { return state.getReg(rbase_) + imm_; }
+	virtual uint32_t opSize() const { return sz_; }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t base = state.getReg(rbase_);
 		const uint64_t val = state.getReg(rsrc_);
-		state.writeMem(base + imm_, sz_, val);
+		state.writeMem(calcEa(state), sz_, val);
 		state.incPc(2);
 	}
 
@@ -755,10 +772,12 @@ public:
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(rbase_)}; }
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(rbase_) + imm_; }
+	uint32_t opSize() const override { return 4; }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t base = state.getReg(rbase_) + imm_;
-		state.setReg(rd_, state.readMem(base, 4));
+		state.setReg(rd_, state.readMem(calcEa(state), 4));
 		state.incPc(2);
 	}
 
@@ -1501,11 +1520,13 @@ public:
 	// help consumers figure out which is store data
 	RegDep stdSrc() const override { return RegNum(r2_); }
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(r1_) + imm_; }
+	uint32_t opSize() const override { return sz_; }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t ea = state.getReg(r1_) + imm_;
 		const uint64_t val = state.getReg(r2_);
-		state.writeMem(ea, 1 << sz_, val);
+		state.writeMem(calcEa(state), 1 << sz_, val);
 		state.incPc(4);
 	}
 
@@ -1548,12 +1569,14 @@ public:
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(r1_) + imm_; }
+	uint32_t opSize() const override { return 1 << (op_ & 3); }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t ea = state.getReg(r1_) + imm_;
-		const uint8_t sz = 1 << (op_ & 3);
+		const uint8_t sz = opSize();
 
-		const uint64_t mval = state.readMem(ea, sz);
+		const uint64_t mval = state.readMem(calcEa(state), sz);
 
 		if (op_ > 3) // unsigned
 		{
@@ -1736,6 +1759,8 @@ public:
 
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
+
+	uint32_t opSize() const override { return 4; }
 
 	void execute(ArchState &state) const override
 	{
@@ -2026,6 +2051,8 @@ public:
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
 
+	uint32_t opSize() const override { return 4; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint32_t vrd = state.getReg(r1_) << imm_;
@@ -2066,6 +2093,8 @@ public:
 
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
+
+	uint32_t opSize() const override { return 4; }
 
 	void execute(ArchState &state) const override
 	{
@@ -2125,6 +2154,8 @@ public:
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
 
+	uint32_t opSize() const override { return 4; }
+
 	void execute(ArchState &state) const override
 	{
 		const uint64_t amt = state.getReg(r2_) & 0x3f; // use low 6 bits
@@ -2167,6 +2198,8 @@ public:
 	// rd = r1 +/- r2
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
+
+	uint32_t opSize() const override { return 4; }
 
 	void execute(ArchState &state) const override
 	{
@@ -2222,6 +2255,8 @@ public:
 
 	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
 	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
+
+	uint32_t opSize() const override { return 4; }
 
 	void execute(ArchState &state) const override
 	{
@@ -2332,11 +2367,14 @@ public:
 		return RegDep(RegNum(0), RegFile::NONE);
 	}
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(ar_); }
+	uint32_t opSize() const override { return dword_ ? 8 : 4; }
+
 	void execute(ArchState &state) const override
 	{
 		// TODO monitor reservation
-		const uint16_t sz = dword_ ? 8 : 4;
-		const uint64_t addr = state.getReg(ar_);
+		const uint16_t sz = opSize();
+		const uint64_t addr = calcEa(state);
 		if (is_store_)
 		{
 			const uint64_t write_val = state.getReg(r2_);
@@ -2407,11 +2445,14 @@ public:
 	// actually r2_ op mem
 	RegDep stdSrc() const override { return RegNum(r2_); }
 
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(r1_); }
+	uint32_t opSize() const override { return dword_ ? 8 : 4; }
+
 	void execute(ArchState &state) const override
 	{
-		const uint64_t ea = state.getReg(r1_);
+		const uint64_t ea = calcEa(state);
 		const uint64_t vr2 = state.getReg(r2_);
-		const uint16_t sz = dword_ ? 8 : 4;
+		const uint16_t sz = opSize();
 		// TODO: acquire and release
 
 		// initial value in memory (not needed for SWAP into r0)

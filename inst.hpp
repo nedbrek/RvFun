@@ -46,6 +46,9 @@ public:
 	///@return register dependency for store data
 	virtual RegDep stdSrc() const { return RegDep(RegNum(0), RegFile::NONE); }
 
+	virtual uint64_t calcEa(ArchState &) const { return 0; }
+	virtual uint32_t opSize() const { return 8; }
+
 	/// update 'state' for execution of this
 	virtual void execute(ArchState &state) const = 0;
 
