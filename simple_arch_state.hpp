@@ -46,8 +46,8 @@ public:
 		pc_ = pc;
 	}
 
-	virtual System* getSys() { return sys_; }
-	virtual const System* getSys() const { return sys_; }
+	System* getSys() override { return sys_; }
+	const System* getSys() const override { return sys_; }
 
 private:
 	static constexpr uint32_t NUM_REGS = 32;

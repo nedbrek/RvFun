@@ -11,6 +11,8 @@ class System;
 class ArchState
 {
 public:
+	virtual ~ArchState() = default;
+
 	virtual uint64_t getReg(uint32_t num) const = 0;
 	virtual void     setReg(uint32_t num, uint64_t val) = 0;
 
