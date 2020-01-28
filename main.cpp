@@ -13,15 +13,20 @@ int main(int argc, char **argv)
 {
 	if (argc == 1)
 	{
-		std::cerr << "Usage: " << argv[0] << "[-i instruction_count] <elf file>" << std::endl;
+		std::cerr << "Usage: " << argv[0] << "[-d][-i instruction_count] <elf file>" << std::endl;
 		return 1;
 	}
 
+	bool debug = false;
 	uint64_t max_icount = 0;
-	int optc = getopt_long(argc, argv, "i:", nullptr, nullptr);
+	int optc = getopt_long(argc, argv, "di:", nullptr, nullptr);
 	while (optc != -1)
 	{
-		if (optc == 'i')
+		if (optc == 'd')
+		{
+			debug = true;
+		}
+		else if (optc == 'i')
 		{
 			max_icount = strtoll(optarg, nullptr, 10);
 		}
@@ -57,7 +62,7 @@ int main(int argc, char **argv)
 		if (host.hadExit())
 		{
 			std::cout << "Program exited." << std::endl;
-			return 0;
+			break;
 		}
 
 		const uint64_t pc = state.getPc();
@@ -77,28 +82,33 @@ int main(int argc, char **argv)
 		else
 			inst = decode16(full_inst);
 
-		std::cout
-		          << std::setw(12) << icount << ' '
-		          << std::hex
-		          << std::setw(12) << pc << ' '
-		          << std::setw(8) << full_inst << ' '
-					 << std::dec;
+		if (debug)
+			std::cout
+			          << std::setw(12) << icount << ' '
+			          << std::hex
+			          << std::setw(12) << pc << ' '
+			          << std::setw(8) << full_inst << ' '
+						 << std::dec;
 
 		if (!inst)
 		{
-			std::cout << "(null inst)(" << std::hex << full_inst << std::dec << ')';
+			std::cout << "(null inst)(" << std::hex << full_inst << std::dec << ')' << '\n';
 			state.incPc(opc_sz);
 		}
 		else
 		{
-			if (opc_sz == 4)
-				std::cout << ' ' << ' '; // shift for C.
+			if (debug)
+			{
+				if (opc_sz == 4)
+					std::cout << ' ' << ' '; // shift for C.
+				std::cout << inst->disasm();
+			}
 
-			std::cout << inst->disasm();
 			inst->execute(state);
 		}
 
-		std::cout << std::endl;
+		if (debug)
+			std::cout << std::endl;
 
 		++icount;
 		if (max_icount != 0 && icount >= max_icount)
@@ -106,16 +116,20 @@ int main(int argc, char **argv)
 	}
 
 	// dump architected state
-	std::cout << std::endl << "Architected State" << std::endl;
-	for (uint32_t i = 0; i < 32;)
+	if (debug)
 	{
-		for (uint32_t j = 0; j < 4; ++j, ++i)
+		std::cout << std::endl << "Architected State" << std::endl;
+		for (uint32_t i = 0; i < 32;)
 		{
-			std::cout << std::setw(2) << i << ' '
-			          << std::hex << std::setw(16) << state.getReg(i) << std::dec << ' ';
+			for (uint32_t j = 0; j < 4; ++j, ++i)
+			{
+				std::cout << std::setw(2) << i << ' '
+							 << std::hex << std::setw(16) << state.getReg(i) << std::dec << ' ';
+			}
+			std::cout << std::endl;
 		}
-		std::cout << std::endl;
 	}
+	std::cout << "Executed " << icount << " instructions." << std::endl;
 
 	return 0;
 }
