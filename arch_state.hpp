@@ -16,6 +16,9 @@ public:
 	virtual uint64_t getReg(uint32_t num) const = 0;
 	virtual void     setReg(uint32_t num, uint64_t val) = 0;
 
+	virtual double getFloat(uint32_t num) const = 0;
+	virtual void   setFloat(uint32_t num, double val) = 0;
+
 	virtual uint64_t readMem(uint64_t va, uint32_t sz) const = 0;
 	virtual void     writeMem(uint64_t va, uint32_t sz, uint64_t val) = 0;
 

@@ -28,6 +28,16 @@ public:
 			ireg[num] = val;
 	}
 
+	double getFloat(uint32_t num) const override
+	{
+		return freg[num];
+	}
+
+	void setFloat(uint32_t num, double val) override
+	{
+		freg[num] = val;
+	}
+
 	uint64_t readMem(uint64_t va, uint32_t sz) const override;
 	void writeMem(uint64_t va, uint32_t sz, uint64_t val) override;
 
@@ -53,6 +63,7 @@ private:
 	static constexpr uint32_t NUM_REGS = 32;
 	uint64_t pc_ = 0;
 	uint64_t ireg[NUM_REGS] = {0,};
+	double freg[NUM_REGS] = {0,};
 	ArchMem *mem_ = nullptr;
 	System *sys_ = nullptr;
 };
