@@ -66,6 +66,8 @@ public:
 		OT_FP, // TODO: more FP types
 		OT_LOAD,
 		OT_STORE,
+		OT_LOAD_FP,
+		OT_STORE_FP,
 		OT_ATOMIC,
 		OT_BRANCH,
 		OT_SYSTEM

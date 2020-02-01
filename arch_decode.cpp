@@ -920,6 +920,50 @@ private:
 	bool arith_;
 };
 
+/// Compressed Float Store Double
+class CompFsd : public Inst
+{
+public:
+	CompFsd(uint8_t imm, uint8_t rbase, uint8_t rsrc)
+	: imm_(imm)
+	, rbase_(rbase)
+	, rsrc_(rsrc)
+	{
+	}
+
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+
+	std::vector<RegDep> srcs() const override { return {RegNum(rbase_), stdSrc()}; }
+
+	// help consumers figure out which is store data
+	RegDep stdSrc() const override { return RegDep(RegNum(rsrc_), RegFile::FLOAT); }
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t base = state.getReg(rbase_);
+		const double val = state.getFloat(rsrc_);
+		state.writeMem(base + imm_, 8, val);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << 'C' << '.' << std::left << std::setw(MNE_WIDTH) << "FSD";
+		os << " [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << "] = f" << uint32_t(rsrc_);
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_STORE_FP; }
+
+private:
+	uint8_t imm_;
+	uint8_t rbase_;
+	uint8_t rsrc_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -927,6 +971,8 @@ Inst* decode16(uint32_t opc)
 	const uint8_t rs = (opc >> 2) & 0x1f; // opc[6:2]
 	const uint8_t rsd = ((opc >> 7) & 7) + 8; // opc[9:7]
 	const uint16_t o15_13 = opc & 0xe000; // opc[15:13]
+	const uint8_t r1p = ((opc >> 7) & 7) + 8; // opc[9:7]
+	const uint8_t r2p = ((opc >> 2) & 7) + 8; // opc[4:2]
 
 	if (o10 == 0) // Memory
 	{
@@ -959,6 +1005,18 @@ Inst* decode16(uint32_t opc)
 			const uint8_t rsp = ((opc >> 7) & 7) + 8; // opc[9:7]
 			const uint8_t rdp = ((opc >> 2) & 7) + 8; // opc[4:2]
 			return new CompLd(imm, rsp, rdp);
+		}
+		// 0x8000 is rsvd
+		if (o15_13 == 0xa000) // C.FSD
+		{
+			// zero extended imm
+			uint8_t imm = (opc >> (10 - 3)) & (7 << 3); // opc[12:10] -> imm[5:3]
+			imm |= (opc & 0x20) ? 0x40 : 0; // opc[5] -> imm[6]
+			imm |= (opc & 0x40) ? 0x80 : 0; // opc[6] -> imm[7]
+
+			const uint8_t rbase = r1p;
+			const uint8_t rsrc = r2p;
+			return new CompFsd(imm, rbase, rsrc);
 		}
 		if (o15_13 == 0xc000) // C.SW
 		{
