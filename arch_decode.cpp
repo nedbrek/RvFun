@@ -1224,7 +1224,16 @@ public:
 	{
 	}
 
-	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> dsts() const override
+	{
+		std::vector<RegDep> ret;
+		if (rd_ == 0)
+			return ret; // no dst
+
+		ret.emplace_back(RegNum(rd_));
+		return ret;
+	}
+
 	// no sources
 	std::vector<RegDep> srcs() const override { return {}; }
 
@@ -1238,7 +1247,18 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "JAL      r" << uint32_t(rd_) << ", " << imm_;
+		os << std::left << std::setw(MNE_WIDTH);
+
+		if (rd_ == 0)
+		{
+			os << 'J'; // link destination is discarded
+		}
+		else
+		{
+			os << "JAL" << ' ' << 'r' << uint32_t(rd_) << ',';
+		}
+		os << ' ' << imm_;
+
 		return os.str();
 	}
 
