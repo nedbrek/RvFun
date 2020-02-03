@@ -2623,6 +2623,51 @@ private:
 	uint8_t rd_;
 };
 
+/// Store Floating Point
+class StoreFp : public Inst
+{
+public:
+	StoreFp(int32_t imm, uint8_t rbase, uint8_t rsrc, uint16_t sz)
+	: imm_(imm)
+	, rbase_(rbase)
+	, rsrc_(rsrc)
+	, sz_(sz)
+	{
+	}
+
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rbase_), stdSrc()}; }
+	// help consumers figure out which is store data
+	RegDep stdSrc() const override { return RegDep(RegNum(rsrc_), RegFile::FLOAT); }
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t base = state.getReg(rbase_);
+		const double val = state.getFloat(rsrc_);
+		state.writeMem(base + imm_, sz_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << 'F' << 'S';
+		os << std::left << std::setw(MNE_WIDTH-2) << (sz_ == 4 ? 'W' : 'D');
+		os << " [r" << uint32_t(rbase_) << '+' << uint32_t(imm_) << "] = f" << uint32_t(rsrc_);
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_STORE_FP; }
+
+private:
+	int32_t imm_;
+	uint8_t rbase_;
+	uint8_t rsrc_;
+	uint16_t sz_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -2646,7 +2691,6 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case   4: // load FP
-	case  36: // store FP
 	case  12: // misc MEM
 		return nullptr; // TODO Mem
 
@@ -2698,6 +2742,20 @@ Inst* decode32(uint32_t opc)
 		}
 
 		return nullptr; // TODO
+	}
+
+	case  36: // store FP
+	{
+		uint16_t imm = rd; // opc[11:7] -> imm[4:0]
+		imm |= (opc >> 20) & 0xfe0; // opc[31:25] -> imm[11:5]
+		if (imm & 0x800)
+			imm |= 0xf000; // sign extend from bit 11
+		const int16_t s_imm = int16_t(imm);
+
+		const uint8_t sz = op == 2 ? 4 : 8;
+		const uint8_t rbase = r1;
+		const uint8_t rsrc = r2;
+		return new StoreFp(s_imm, rbase, rsrc, sz);
 	}
 
 	case  44: // AMO (atomics)
