@@ -267,7 +267,20 @@ public:
 	void execute(ArchState &state) const override
 	{
 		const uint64_t ea = calcEa(state);
-		state.setReg(rd_, state.readMem(ea, sz_));
+
+		// sign-extend from word
+		uint64_t val = 0;
+		if (sz_ == 4)
+		{
+			const int32_t mval = state.readMem(ea, 4);
+			val = int64_t(mval);
+		}
+		else
+		{
+			val = state.readMem(ea, sz_);
+		}
+
+		state.setReg(rd_, val);
 		state.incPc(2);
 	}
 
@@ -777,7 +790,9 @@ public:
 
 	void execute(ArchState &state) const override
 	{
-		state.setReg(rd_, state.readMem(calcEa(state), 4));
+		const uint64_t ea = calcEa(state);
+		const int32_t mval = state.readMem(ea, 4);
+		state.setReg(rd_, int64_t(mval));
 		state.incPc(2);
 	}
 
