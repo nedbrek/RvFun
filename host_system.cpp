@@ -146,7 +146,17 @@ void HostSystem::fstat(ArchState &state)
 {
 	const uint64_t fd = state.getReg(10);
 	uint64_t path_p = state.getReg(11);
-	//state.getReg(12) stat buf
+	const uint64_t buf = state.getReg(12);
+
+	if (fd == 1) // stdout
+	{
+		//state.writeMem(buf+16, 4, 0x81b6); // mode: block device
+		state.writeMem(buf+16, 4, 0x2190); // mode: char device
+		state.writeMem(buf+56, 8, 8192); // block size
+
+		state.setReg(10, 0); // success!
+		return;
+	}
 
 	std::cerr << " fstat fd=" << fd
 	          << " path='";
