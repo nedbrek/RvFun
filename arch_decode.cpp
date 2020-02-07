@@ -10,9 +10,14 @@ namespace
 	// 8 character mnemonics
 	constexpr uint32_t MNE_WIDTH = 8;
 
-	std::basic_ostream<char>& printReg(std::ostream &os, uint8_t r)
+	std::basic_ostream<char>& printReg(std::ostream &os, uint8_t r, bool is_float = false)
 	{
-		return os << 'r' << std::left << std::setw(2) << uint32_t(r);
+		if (is_float)
+			os << 'f';
+		else
+			os << 'r';
+
+		return os << std::left << std::setw(2) << uint32_t(r);
 	}
 }
 
@@ -2683,6 +2688,117 @@ private:
 	uint16_t sz_;
 };
 
+/// Move between int and float register files
+class Fmove : public Inst
+{
+public:
+	Fmove(bool dword, bool to_float, uint8_t r1, uint8_t rd)
+	: dword_(dword)
+	, to_float_(to_float)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override
+	{
+		if (to_float_)
+			return {RegDep(RegNum(rd_), RegFile::FLOAT)};
+
+		// int is default
+		return {RegNum(rd_)};
+	}
+
+	std::vector<RegDep> srcs() const override
+	{
+		if (to_float_)
+			return {RegNum(r1_)}; // int is default
+
+		return {RegDep(RegNum(r1_), RegFile::FLOAT)};
+	}
+
+	uint32_t opSize() const override { return dword_ ? 8 : 4; }
+
+	void execute(ArchState &state) const override
+	{
+		union
+		{
+			uint64_t dw;
+			int64_t sdw;
+			int32_t sw;
+			float    f;
+			double   d;
+		} tmp;
+
+		if (to_float_)
+		{
+			// read int file
+			tmp.dw = state.getReg(r1_);
+
+			double val = 0;
+			if (dword_)
+				val = tmp.d; // double to double
+			else
+				val = tmp.f; // float to double
+
+			state.setFloat(rd_, val);
+		}
+		else // float to int
+		{
+			// read float file
+			if (dword_)
+			{
+				// double to dword
+				tmp.d = state.getFloat(r1_);
+				state.setReg(rd_, tmp.dw);
+			}
+			else // word
+			{
+				// read single precision
+				tmp.f = state.getFloat(r1_);
+
+				// sign extend (how is this meaningful?)
+				state.setReg(rd_, int64_t(tmp.sw));
+			}
+		}
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+
+		// assemble mnemonic
+		std::ostringstream mne;
+		mne << "FMV.";
+
+		if (to_float_)
+		{
+			mne << (dword_ ? 'D' : 'W') << '.' << 'X';
+		}
+		else // float to int
+		{
+			mne << 'X' << '.' << (dword_ ? 'D' : 'W');
+		}
+
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+
+		const char src_rf = to_float_ ? 'r' : 'f';
+		printReg(os, rd_, to_float_) << " = " << src_rf << uint32_t(r1_); 
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_MOV; }
+
+private:
+	bool dword_;
+	bool to_float_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -2836,8 +2952,19 @@ Inst* decode32(uint32_t opc)
 	case  68: // MSUB
 	case  72: // NMSUB
 	case  76: // NMADD
-	case  80: // fp op
 		return nullptr; // TODO FP
+
+	case  80: // fp op
+	{
+		const uint8_t op2 = (opc >> 25) & 0xff; // opc[31:25]
+		if ((op2 & 0x76) == 0x70)
+		{
+			const bool dword = (op2 & 1) != 0;
+			const bool to_float = (op2 & 8) != 0;
+			return new Fmove(dword, to_float, r1, rd);
+		}
+		return nullptr; // TODO FP
+	}
 
 	case  96: // branch
 	{
