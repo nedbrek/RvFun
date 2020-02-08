@@ -19,6 +19,15 @@ namespace
 
 		return os << std::left << std::setw(2) << uint32_t(r);
 	}
+
+union IntFloat
+{
+	uint64_t dw;
+	int64_t sdw;
+	int32_t sw;
+	float    f;
+	double   d;
+};
 }
 
 namespace rvfun
@@ -2721,14 +2730,7 @@ public:
 
 	void execute(ArchState &state) const override
 	{
-		union
-		{
-			uint64_t dw;
-			int64_t sdw;
-			int32_t sw;
-			float    f;
-			double   d;
-		} tmp;
+		IntFloat tmp;
 
 		if (to_float_)
 		{
@@ -2799,6 +2801,66 @@ private:
 	uint8_t rd_;
 };
 
+/// Load floating point
+class LoadFp : public Inst
+{
+public:
+	LoadFp(uint8_t op, int32_t s_imm, uint8_t r1, uint8_t rd)
+	: op_(op)
+	, imm_(s_imm)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override { return {RegDep(RegNum(rd_), RegFile::FLOAT)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_)}; }
+
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(r1_) + imm_; }
+	uint32_t opSize() const override { return 1 << (op_ & 3); }
+
+	void execute(ArchState &state) const override
+	{
+		const uint8_t sz = opSize();
+		const uint64_t ea = calcEa(state);
+
+		double val = 0;
+		IntFloat tmp;
+		if (sz == 8)
+		{
+			tmp.sdw = state.readMem(ea, 8);
+			val = tmp.d;
+		}
+		else
+		{
+			tmp.sw = state.readMem(ea, 4);
+			val = tmp.f;
+		}
+
+		state.setFloat(rd_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		std::ostringstream mne;
+		mne << 'F' << 'L' << (opSize() == 8 ? 'D' : 'W');
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+		printReg(os, rd_, true) << " = [r" << uint32_t(r1_) << '+' << imm_ << ']';
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_LOAD_FP; }
+
+private:
+	uint8_t op_;
+	int64_t imm_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -2822,26 +2884,17 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case   4: // load FP
+	{
+		uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
+		if (imm & 0x800)
+			imm |= 0xf000; // sign ex
+		int16_t s_imm = imm;
+
+		return new LoadFp(op, s_imm, r1, rd);
+	}
+
 	case  12: // misc MEM
 		return nullptr; // TODO Mem
-
-	case  32: // store
-	{
-		uint16_t imm = rd; // opc[11:7] -> imm[4:0]
-		imm |= (opc >> 20) & 0xfe0; // opc[31:25] -> imm[11:5]
-		if (imm & 0x800)
-			imm |= 0xf000; // sign extend from bit 11
-
-		const int16_t s_imm = int16_t(imm);
-		const uint8_t sz = op; // opc[14:12]
-		return new Store(sz, s_imm, r1, r2);
-	}
-
-	case  20: // AUIPC
-	{
-		const uint32_t imm = opc & 0xfffff000; // opc[31:12]
-		return new Auipc(imm, rd);
-	}
 
 	case  16: // op imm
 	{
@@ -2849,6 +2902,12 @@ Inst* decode32(uint32_t opc)
 		if (imm & 0x800)
 			imm |= 0xf000; // sign ex
 		return new OpImm(op, imm, r1, rd);
+	}
+
+	case  20: // AUIPC
+	{
+		const uint32_t imm = opc & 0xfffff000; // opc[31:12]
+		return new Auipc(imm, rd);
 	}
 
 	case  24: // op imm32
@@ -2873,6 +2932,18 @@ Inst* decode32(uint32_t opc)
 		}
 
 		return nullptr; // TODO
+	}
+
+	case  32: // store
+	{
+		uint16_t imm = rd; // opc[11:7] -> imm[4:0]
+		imm |= (opc >> 20) & 0xfe0; // opc[31:25] -> imm[11:5]
+		if (imm & 0x800)
+			imm |= 0xf000; // sign extend from bit 11
+
+		const int16_t s_imm = int16_t(imm);
+		const uint8_t sz = op; // opc[14:12]
+		return new Store(sz, s_imm, r1, r2);
 	}
 
 	case  36: // store FP
@@ -2918,6 +2989,12 @@ Inst* decode32(uint32_t opc)
 		return new OpRegReg(op, op30, r2, r1, rd);
 	}
 
+	case  52: // LUI
+	{
+		const int32_t imm = opc & 0xfffff000; // opc[31:12]
+		return new Lui(imm, rd);
+	}
+
 	case  56: // op32
 	{
 		if (opc & 0x2000000) // opc[25]
@@ -2940,12 +3017,6 @@ Inst* decode32(uint32_t opc)
 		}
 
 		return nullptr; // TODO
-	}
-
-	case  52: // LUI
-	{
-		const int32_t imm = opc & 0xfffff000; // opc[31:12]
-		return new Lui(imm, rd);
 	}
 
 	case  64: // MADD
