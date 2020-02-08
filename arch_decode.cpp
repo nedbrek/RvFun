@@ -3252,6 +3252,107 @@ private:
 	uint8_t rd_;
 };
 
+/// Float Multiply and Add (and variants)
+class Fmadd : public Inst
+{
+public:
+	Fmadd(bool dbl, uint8_t rm, uint8_t op, uint8_t r3, uint8_t r2, uint8_t r1, uint8_t rd)
+	: dbl_(dbl)
+	, rm_(rm)
+	, op_(op)
+	, r3_(r3)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override { return {RegDep(RegNum(rd_), RegFile::FLOAT)}; }
+	std::vector<RegDep> srcs() const override
+	{
+		return {
+			RegDep(RegNum(r1_), RegFile::FLOAT),
+			RegDep(RegNum(r2_), RegFile::FLOAT),
+			RegDep(RegNum(r3_), RegFile::FLOAT)
+		};
+	}
+
+	uint32_t opSize() const override { return dbl_ ? 8 : 4; }
+
+	void execute(ArchState &state) const override
+	{
+		// TODO: rounding modes
+		double val = 0;
+		if (dbl_)
+		{
+			const double v1 = state.getFloat(r1_);
+			const double v2 = state.getFloat(r2_);
+			const double v3 = state.getFloat(r3_);
+			switch (op_)
+			{
+			case 0: val = v1 * v2 + v3; break; // FMADD
+			case 1: val = v1 * v2 - v3; break; // FMSUB
+			case 2: val = -(v1 * v2) + v3; break; // FNMSUB
+			case 3: val = -(v1 * v2) - v3; break; // FNMADD
+			}
+		}
+		else
+		{
+			const float v1 = state.getFloat(r1_);
+			const float v2 = state.getFloat(r2_);
+			const float v3 = state.getFloat(r3_);
+			switch (op_)
+			{
+			case 0: val = v1 * v2 + v3; break; // FMADD
+			case 1: val = v1 * v2 - v3; break; // FMSUB
+			case 2: val = -(v1 * v2) + v3; break; // FNMSUB
+			case 3: val = -(v1 * v2) - v3; break; // FNMADD
+			}
+		}
+
+		state.setFloat(rd_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		// assemble mnemonic
+		std::ostringstream mne;
+		mne << 'F';
+		bool is_add = (op_ & 1) != 0;
+		if (op_ & 2)
+		{
+			mne << 'N';
+		}
+		else
+		{
+			is_add = !is_add;
+		}
+		mne << 'M' << (is_add ? "ADD" : "SUB");
+
+		mne << '.' << (dbl_ ? 'D' : 'S');
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+
+		printReg(os, rd_, true) << " = f" << uint32_t(r1_)
+		   << ", f" << uint32_t(r2_)
+		   << ", f" << uint32_t(r3_);
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_FP; }
+
+private:
+	bool dbl_;
+	uint8_t rm_;
+	uint8_t op_;
+	uint8_t r3_;
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -3410,11 +3511,17 @@ Inst* decode32(uint32_t opc)
 		return nullptr; // TODO
 	}
 
-	case  64: // MADD
-	case  68: // MSUB
-	case  72: // NMSUB
-	case  76: // NMADD
-		return nullptr; // TODO FP
+	case  64: // FMADD
+	case  68: // FMSUB
+	case  72: // FNMSUB
+	case  76: // FNMADD
+	{
+		const bool dbl = (opc & 0x02000000) != 0; // opc[25]
+		const uint8_t r3 = (opc >> 27) & 0x1f; // opc[31:27]
+		const uint8_t rm = op;
+		const uint8_t op2 = (opc >> 2) & 3; // opc[3:2]
+		return new Fmadd(dbl, rm, op2, r3, r2, r1, rd);
+	}
 
 	case  80: // fp op
 	{
