@@ -3353,6 +3353,103 @@ private:
 	uint8_t rd_;
 };
 
+/// Float ALU ops (Add, Sub, Mul, Div)
+class FpAlu : public Inst
+{
+public:
+	FpAlu(uint8_t alu, bool dbl, uint8_t round, uint8_t r2, uint8_t r1, uint8_t rd)
+	: alu_(alu)
+	, dbl_(dbl)
+	, round_(round)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override { return {RegDep(RegNum(rd_), RegFile::FLOAT)}; }
+	std::vector<RegDep> srcs() const override
+	{
+		return {
+			RegDep(RegNum(r1_), RegFile::FLOAT),
+			RegDep(RegNum(r2_), RegFile::FLOAT)
+		};
+	}
+
+	uint32_t opSize() const override { return dbl_ ? 8 : 4; }
+
+	void execute(ArchState &state) const override
+	{
+		double val = 0;
+		if (dbl_)
+		{
+			const double v1 = state.getFloat(r1_);
+			const double v2 = state.getFloat(r2_);
+			switch (alu_)
+			{
+			case 0: val = v1 + v2; break;
+			case 1: val = v1 - v2; break;
+			case 2: val = v1 * v2; break;
+			case 3:
+				if (v2 != 0) // prevent divide by zero
+					val = v1 / v2;
+				break;
+			}
+		}
+		else
+		{
+			const float v1 = state.getFloat(r1_);
+			const float v2 = state.getFloat(r2_);
+			switch (alu_)
+			{
+			case 0: val = v1 + v2; break;
+			case 1: val = v1 - v2; break;
+			case 2: val = v1 * v2; break;
+			case 3:
+				if (v2 != 0) // prevent divide by zero
+					val = v1 / v2;
+				break;
+			}
+		}
+
+		state.setFloat(rd_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		// assemble mnemonic
+		std::ostringstream mne;
+		mne << 'F';
+		char op = ' ';
+		switch (alu_)
+		{
+		case 0: mne << "ADD"; op = '+'; break;
+		case 1: mne << "SUB"; op = '-'; break;
+		case 2: mne << "MUL"; op = '*'; break;
+		case 3: mne << "DIV"; op = '/'; break;
+		}
+		mne << '.' << (dbl_ ? 'D' : 'S');
+
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+		printReg(os, rd_, true) << " = f" << uint32_t(r1_)
+		   << ' ' << op << " f" << uint32_t(r2_);
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_FP; }
+
+private:
+	uint8_t alu_;
+	bool dbl_;
+	uint8_t round_;
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -3527,24 +3624,29 @@ Inst* decode32(uint32_t opc)
 	{
 		const uint8_t op2 = (opc >> 25) & 0xff; // opc[31:25]
 		const uint8_t mask1 = op2 & 0x7e; // upper op bits[6:1]
-		const uint8_t mask2 = op2 & 0x76; // ignore bit 3
+		const uint8_t mask2 = op2 & 0x76; // ignore bit 3 (opc[28])
+		const bool dbl = (op2 & 1) != 0; // float bar
 		if (mask2 == 0x70) // FMV
 		{
-			const bool dword = (op2 & 1) != 0;
+			const bool dword = dbl;
 			const bool to_float = (op2 & 8) != 0;
 			return new Fmove(dword, to_float, r1, rd);
 		}
 		if (mask2 == 0x60) // FCVT
 		{
-			const bool dbl = (op2 & 1) != 0; // float bar
 			const bool to_float = (op2 & 8) != 0; // to_int bar
 			const uint8_t int_sz = r2; // sw, w, sx, x
 			const uint8_t round = op;
 			return new FcvtInt(dbl, to_float, int_sz, round, r1, rd);
 		}
+		if (mask2 == 0x04 || mask2 == 0x00) // FP ALU
+		{
+			const uint8_t alu = (op2 >> 2) & 3; // opc[28:27]
+			const uint8_t round = op;
+			return new FpAlu(alu, dbl, round, r2, r1, rd);
+		}
 		if (mask1 == 0x10) // FSGN
 		{
-			const bool dbl = (op2 & 1) != 0; // float bar
 			return new Fsign(dbl, op, r2, r1, rd);
 		}
 		return nullptr; // TODO FP
