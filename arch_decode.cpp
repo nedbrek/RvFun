@@ -2861,6 +2861,205 @@ private:
 	uint8_t rd_;
 };
 
+/// Convert between float and int
+class FcvtInt : public Inst
+{
+public:
+	FcvtInt(bool dbl, bool to_float, uint8_t int_sz, uint8_t round, uint8_t r1, uint8_t rd)
+	: dbl_(dbl)
+	, to_float_(to_float)
+	, int_sz_(int_sz)
+	, round_(round)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override
+	{
+		if (to_float_)
+			return {RegDep(RegNum(rd_), RegFile::FLOAT)};
+
+		// int is default
+		return {RegNum(rd_)};
+	}
+
+	std::vector<RegDep> srcs() const override
+	{
+		if (to_float_)
+			return {RegNum(r1_)}; // int is default
+
+		return {RegDep(RegNum(r1_), RegFile::FLOAT)};
+	}
+
+	uint32_t opSize() const override
+	{
+		// we can have different sizes for source and dest
+		// TODO: decide how to convey that
+		// For now, we'll return 8 if either is 8, and 4 only if both are 4
+		return (dbl_ || int_sz_ > 1) ? 8 : 4;
+	}
+
+	void execute(ArchState &state) const override
+	{
+		// TODO: rounding modes
+		if (to_float_)
+		{
+			double val = 0;
+			const uint64_t rval = state.getReg(r1_);
+			switch (int_sz_)
+			{
+			case 0: // signed word
+			{
+				const int32_t ival = rval;
+				if (dbl_)
+					val = ival;
+				else
+					val = float(ival);
+				break;
+			}
+
+			case 1: // unsigned word
+			{
+				const uint32_t ival = rval;
+				if (dbl_)
+					val = ival;
+				else
+					val = float(ival);
+				break;
+			}
+
+			case 2: // signed dword
+			{
+				const int64_t ival = rval;
+				if (dbl_)
+					val = ival;
+				else
+					val = float(ival);
+				break;
+			}
+
+			case 3: // unsigned dword
+			{
+				const uint64_t ival = rval;
+				if (dbl_)
+					val = ival;
+				else
+					val = float(ival);
+				break;
+			}
+			}
+
+			state.setFloat(rd_, val);
+		}
+		else // to int
+		{
+			const double dval = state.getFloat(r1_);
+			const float fval = dval;
+
+			uint64_t val = 0;
+			switch (int_sz_)
+			{
+			case 0: // signed word
+			{
+				int32_t tmp = 0;
+				if (dbl_)
+					tmp = dval;
+				else
+					tmp = fval;
+
+				// sign-extend
+				val = int64_t(tmp);
+				break;
+			}
+
+			case 1: // unsigned word
+			{
+				uint32_t tmp = 0;
+				if (dbl_)
+					tmp = dval;
+				else
+					tmp = fval;
+
+				// still need to sign-extend
+				val = int64_t(int32_t(tmp));
+				break;
+			}
+
+			case 2: // signed dword
+			{
+				int64_t tmp = 0;
+				if (dbl_)
+					tmp = dval;
+				else
+					tmp = fval;
+				val = tmp;
+				break;
+			}
+
+			case 3: // unsigned dword
+			{
+				if (dbl_)
+					val = dval;
+				else
+					val = fval;
+				break;
+			}
+			}
+
+			state.setReg(rd_, val);
+		}
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+
+		// assemble mnemonic
+		std::ostringstream mne;
+		mne << "FCVT.";
+
+		if (to_float_)
+		{
+			mne << (dbl_ ? 'D' : 'S') << '.';
+			mneInt(mne);
+		}
+		else
+		{
+			mneInt(mne) << '.' << (dbl_ ? 'D' : 'S');
+		}
+
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+
+		const char src_rf = to_float_ ? 'r' : 'f';
+		printReg(os, rd_, to_float_) << " = " << src_rf << uint32_t(r1_); 
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_FP; }
+
+private: // methods
+	std::ostream& mneInt(std::ostream &os) const
+	{
+		os << ((int_sz_ & 2) ? 'L' : 'W');
+		if (int_sz_ & 1)
+			os << 'U';
+
+		return os;
+	}
+
+private: // data
+	bool dbl_;
+	bool to_float_;
+	uint8_t int_sz_;
+	uint8_t round_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -3028,11 +3227,20 @@ Inst* decode32(uint32_t opc)
 	case  80: // fp op
 	{
 		const uint8_t op2 = (opc >> 25) & 0xff; // opc[31:25]
-		if ((op2 & 0x76) == 0x70)
+		const uint8_t masked = op2 & 0x76;
+		if (masked == 0x70) // FMV
 		{
 			const bool dword = (op2 & 1) != 0;
 			const bool to_float = (op2 & 8) != 0;
 			return new Fmove(dword, to_float, r1, rd);
+		}
+		if (masked == 0x60) // FCVT
+		{
+			const bool dbl = (op2 & 1) != 0; // float bar
+			const bool to_float = (op2 & 8) != 0; // to_int bar
+			const uint8_t int_sz = r2; // sw, w, sx, x
+			const uint8_t round = op;
+			return new FcvtInt(dbl, to_float, int_sz, round, r1, rd);
 		}
 		return nullptr; // TODO FP
 	}
