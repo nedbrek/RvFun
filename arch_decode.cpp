@@ -2840,7 +2840,7 @@ public:
 		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
 
 		const char src_rf = to_float_ ? 'r' : 'f';
-		printReg(os, rd_, to_float_) << " = " << src_rf << uint32_t(r1_); 
+		printReg(os, rd_, to_float_) << " = " << src_rf << uint32_t(r1_);
 
 		return os.str();
 	}
@@ -3087,7 +3087,7 @@ public:
 		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
 
 		const char src_rf = to_float_ ? 'r' : 'f';
-		printReg(os, rd_, to_float_) << " = " << src_rf << uint32_t(r1_); 
+		printReg(os, rd_, to_float_) << " = " << src_rf << uint32_t(r1_);
 
 		return os.str();
 	}
@@ -3109,6 +3109,145 @@ private: // data
 	bool to_float_;
 	uint8_t int_sz_;
 	uint8_t round_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
+/// Float sign manipulate
+class Fsign : public Inst
+{
+public:
+	Fsign(bool dbl, uint8_t op, uint8_t r2, uint8_t r1, uint8_t rd)
+	: dbl_(dbl)
+	, op_(op)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override { return {RegDep(RegNum(rd_), RegFile::FLOAT)}; }
+	std::vector<RegDep> srcs() const override
+	{
+		return {
+			RegDep(RegNum(r1_), RegFile::FLOAT),
+			RegDep(RegNum(r2_), RegFile::FLOAT)
+		};
+	}
+
+	uint32_t opSize() const override { return dbl_ ? 8 : 4; }
+
+	void execute(ArchState &state) const override
+	{
+		double val = 0;
+
+		if (dbl_)
+		{
+			const double v1 = state.getFloat(r1_);
+			const bool v1_neg = v1 < 0;
+			const bool v2_neg = state.getFloat(r2_) < 0;
+
+			val = v1;
+			bool invert = false;
+			if (op_ == 0) // use r2 sign
+			{
+				invert = v1_neg != v2_neg; // invert to get them to match
+			}
+			else if (op_ == 1) // use opposite of r2
+			{
+				invert = v1_neg == v2_neg; // invert to get them to not match
+			}
+			else if (op_ == 2) // xor r1 and r2
+			{
+				// v1 v2 = val (currently v1)
+				//  0  0   0 (keep v1)
+				//  0  1   1 (invert)
+				//  1  0   1 (keep v1)
+				//  1  1   0 (invert)
+				invert = v2_neg;
+			}
+
+			if (invert)
+				val = -val;
+		}
+		else
+		{
+			const float v1 = state.getFloat(r1_);
+			const bool v1_neg = v1 < 0;
+			const bool v2_neg = state.getFloat(r2_) < 0;
+
+			bool invert = false;
+			if (op_ == 0) // use r2 sign
+			{
+				invert = v1_neg != v2_neg; // invert to get them to match
+			}
+			else if (op_ == 1) // use opposite of r2
+			{
+				invert = v1_neg == v2_neg; // invert to get them to not match
+			}
+			else if (op_ == 2) // xor r1 and r2
+			{
+				// v1 v2 = val (currently v1)
+				//  0  0   0 (keep v1)
+				//  0  1   1 (invert)
+				//  1  0   1 (keep v1)
+				//  1  1   0 (invert)
+				invert = v2_neg;
+			}
+
+			if (invert)
+				val = -v1;
+			else
+				val = v1;
+		}
+
+		state.setFloat(rd_, val);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		// assemble mnemonic
+		std::ostringstream mne;
+
+		if (r1_ == r2_)
+		{
+			// pseudo op
+			if (op_ == 0)
+				mne << "FMV";
+			else if (op_ == 1)
+				mne << "FNEG";
+			else if (op_ == 2)
+				mne << "FABS";
+			//else op_ == 3 rsvd
+		}
+		else
+		{
+			mne << "FSGNJ";
+			if (op_ == 1)
+				mne << 'N';
+			else if (op_ == 2)
+				mne << 'X';
+		}
+		mne << '.' << (dbl_ ? 'D' : 'S');
+
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+
+		printReg(os, rd_, true) << " = f" << uint32_t(r1_);
+		if (r1_ != r2_)
+			os << ", f" << uint32_t(r2_);
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_FP; }
+
+private:
+	bool dbl_;
+	uint8_t op_;
+	uint8_t r2_;
 	uint8_t r1_;
 	uint8_t rd_;
 };
@@ -3280,20 +3419,26 @@ Inst* decode32(uint32_t opc)
 	case  80: // fp op
 	{
 		const uint8_t op2 = (opc >> 25) & 0xff; // opc[31:25]
-		const uint8_t masked = op2 & 0x76;
-		if (masked == 0x70) // FMV
+		const uint8_t mask1 = op2 & 0x7e; // upper op bits[6:1]
+		const uint8_t mask2 = op2 & 0x76; // ignore bit 3
+		if (mask2 == 0x70) // FMV
 		{
 			const bool dword = (op2 & 1) != 0;
 			const bool to_float = (op2 & 8) != 0;
 			return new Fmove(dword, to_float, r1, rd);
 		}
-		if (masked == 0x60) // FCVT
+		if (mask2 == 0x60) // FCVT
 		{
 			const bool dbl = (op2 & 1) != 0; // float bar
 			const bool to_float = (op2 & 8) != 0; // to_int bar
 			const uint8_t int_sz = r2; // sw, w, sx, x
 			const uint8_t round = op;
 			return new FcvtInt(dbl, to_float, int_sz, round, r1, rd);
+		}
+		if (mask1 == 0x10) // FSGN
+		{
+			const bool dbl = (op2 & 1) != 0; // float bar
+			return new Fsign(dbl, op, r2, r1, rd);
 		}
 		return nullptr; // TODO FP
 	}
