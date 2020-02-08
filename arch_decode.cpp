@@ -993,6 +993,49 @@ private:
 	uint8_t rsrc_;
 };
 
+/// Compressed Float Load Double
+class CompFpLd : public Inst
+{
+public:
+	CompFpLd(uint32_t imm, uint8_t rs, uint8_t rd)
+	: imm_(imm)
+	, rs_(rs)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override { return {RegDep(RegNum(rd_), RegFile::FLOAT)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(rs_)}; }
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(rs_) + imm_; }
+	uint32_t opSize() const override { return 8; }
+
+	void execute(ArchState &state) const override
+	{
+		// pull 8 bytes as-is
+		IntFloat tmp;
+		tmp.dw = state.readMem(calcEa(state), 8);
+
+		state.setFloat(rd_, tmp.d);
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << 'C' << '.';
+		os << std::left << std::setw(MNE_WIDTH) << "FLD" << ' ';
+		printReg(os, rd_, true) << " = [r" << uint32_t(rs_) << '+' << imm_ << ']';
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_LOAD_FP; }
+
+private:
+	uint32_t imm_;
+	uint8_t rs_;
+	uint8_t rd_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -1013,6 +1056,16 @@ Inst* decode16(uint32_t opc)
 			imm |= (opc & 0x40) ? 4 : 0; // opc[6] -> imm[2]
 			imm |= (opc & 0x20) ? 8 : 0; // opc[5] -> imm[3]
 			return new CompAddI4SpN(imm, rd);
+		}
+		if (o15_13 == 0x2000) // C.FLD
+		{
+			// zero extended imm
+			uint8_t imm = (opc >> (10 - 3)) & (7 << 3); // opc[12:10] -> imm[5:3]
+			imm |= (opc << (6 - 5)) & (3 << 6); // opc[6:5] -> imm[7:6]
+
+			const uint8_t rsp = r1p; // opc[9:7]
+			const uint8_t rdp = r2p; // opc[4:2]
+			return new CompFpLd(imm, rsp, rdp);
 		}
 		if (o15_13 == 0x4000) // C.LW
 		{
