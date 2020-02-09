@@ -3450,6 +3450,97 @@ private:
 	uint8_t rd_;
 };
 
+/// Float Compare (FLE, FLT, FEQ)
+class Fcmp : public Inst
+{
+public:
+	Fcmp(bool dbl, uint8_t op, uint8_t r2, uint8_t r1, uint8_t rd)
+	: dbl_(dbl)
+	, op_(op)
+	, r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	// integer dest
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override
+	{
+		return {
+			RegDep(RegNum(r1_), RegFile::FLOAT),
+			RegDep(RegNum(r2_), RegFile::FLOAT)
+		};
+	}
+
+	uint32_t opSize() const override { return dbl_ ? 8 : 4; }
+
+	void execute(ArchState &state) const override
+	{
+		bool val = false;
+
+		if (dbl_)
+		{
+			const double v1 = state.getFloat(r1_);
+			const double v2 = state.getFloat(r2_);
+
+			switch (op_)
+			{
+			case 0: val = v1 <= v2; break;
+			case 1: val = v1 < v2; break;
+			case 2: val = v1 == v2; break; // can FP really be equal?
+			}
+		}
+		else
+		{
+			const float v1 = state.getFloat(r1_);
+			const float v2 = state.getFloat(r2_);
+
+			switch (op_)
+			{
+			case 0: val = v1 <= v2; break;
+			case 1: val = v1 < v2; break;
+			case 2: val = v1 == v2; break; // can FP really be equal?
+			}
+		}
+
+		state.setReg(rd_, val ? 1 : 0);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		// assemble mnemonic
+		std::ostringstream mne;
+		mne << 'F';
+		const char *op = "";
+		switch (op_)
+		{
+		case 0: mne << "LE"; op = "<="; break;
+		case 1: mne << "LT"; op = "<"; break;
+		case 2: mne << "EQ"; op = "=="; break;
+		}
+		mne << '.' << (dbl_ ? 'D' : 'S');
+
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+
+		printReg(os, rd_) << " = f" << uint32_t(r1_)
+		   << ' ' << op << " f" << uint32_t(r2_);
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_FP; }
+
+private:
+	bool dbl_;
+	uint8_t op_;
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -3648,6 +3739,10 @@ Inst* decode32(uint32_t opc)
 		if (mask1 == 0x10) // FSGN
 		{
 			return new Fsign(dbl, op, r2, r1, rd);
+		}
+		if (mask1 == 0x50) // FCMP
+		{
+			return new Fcmp(dbl, op, r2, r1, rd);
 		}
 		return nullptr; // TODO FP
 	}
