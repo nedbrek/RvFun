@@ -1,6 +1,7 @@
 #include "inst.hpp"
 #include "arch_state.hpp"
 #include "system.hpp"
+#include <cmath>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -3649,6 +3650,72 @@ private:
 	uint8_t rd_;
 };
 
+/// Float Square Root
+class Fsqrt : public Inst
+{
+public:
+	Fsqrt(bool dbl, uint8_t round, uint8_t r1, uint8_t rd)
+	: dbl_(dbl)
+	, round_(round)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override { return {RegDep(RegNum(rd_), RegFile::FLOAT)}; }
+	std::vector<RegDep> srcs() const override
+	{
+		return { RegDep(RegNum(r1_), RegFile::FLOAT) };
+	}
+
+	uint32_t opSize() const override { return dbl_ ? 8 : 4; }
+
+	void execute(ArchState &state) const override
+	{
+		const double rval = state.getFloat(r1_);
+
+		double val = 0;
+		if (rval < 0)
+		{
+			if (dbl_)
+				val = nan("");
+			else
+				val = nanf("");
+		}
+		else
+		{
+			if (dbl_)
+				val = sqrt(rval);
+			else
+				val = sqrtf(float(rval));
+		}
+
+		state.setFloat(rd_, val);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		// assemble mnemonic
+		std::ostringstream mne;
+		mne << "FSQRT" << '.' << (dbl_ ? 'D' : 'S');
+
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+		printReg(os, rd_, true) << " = sqrt(f" << uint32_t(r1_) << ')';
+
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_FP; }
+
+private:
+	bool dbl_;
+	uint8_t round_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -3847,6 +3914,11 @@ Inst* decode32(uint32_t opc)
 		if (mask1 == 0x10) // FSGN
 		{
 			return new Fsign(dbl, op, r2, r1, rd);
+		}
+		if (mask1 == 0x2c) // FSQRT
+		{
+			const uint8_t round = op;
+			return new Fsqrt(dbl, round, r1, rd);
 		}
 		if (mask1 == 0x50) // FCMP
 		{
