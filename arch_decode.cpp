@@ -1037,6 +1037,51 @@ private:
 	uint8_t rd_;
 };
 
+/// Float Store Double to Stack Pointer
+class CompFsdSp : public Inst
+{
+public:
+	CompFsdSp(uint32_t imm, uint8_t rs)
+	: imm_(imm)
+	, rs_(rs)
+	{
+	}
+
+	// no dests
+	std::vector<RegDep> dsts() const override { return {}; }
+
+	std::vector<RegDep> srcs() const override { return {RegNum(Reg::SP), stdSrc()}; }
+
+	// help consumers figure out which is store data
+	RegDep stdSrc() const override { return RegDep(RegNum(rs_), RegFile::FLOAT); }
+
+	uint64_t calcEa(ArchState &state) const override { return state.getReg(Reg::SP) + imm_; }
+	uint32_t opSize() const override { return 8; }
+
+	void execute(ArchState &state) const override
+	{
+		const uint64_t ea = calcEa(state);
+		state.writeMem(ea, 8, state.getFloat(rs_));
+
+		state.incPc(2);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << 'C' << '.';
+		os << std::left << std::setw(MNE_WIDTH) << "FSDSP" << ' '
+		   << "[r2+" << imm_ << "] = r" << uint32_t(rs_);
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_STORE_FP; }
+
+private:
+	uint32_t imm_;
+	uint8_t rs_;
+};
+
 Inst* decode16(uint32_t opc)
 {
 	const uint8_t o10 = opc & 3; // opc[1:0]
@@ -1293,6 +1338,13 @@ Inst* decode16(uint32_t opc)
 				return new CompJalr(rd);
 
 			return new CompAdd(rs, rd);
+		}
+		else if (o15_12 == 0xa000 || o15_12 == 0xb000) // C.FSDSP
+		{
+			uint16_t imm = (opc >> 1) & 0x1c0; // opc[9:7] -> imm[8:6]
+			const uint16_t low_imm = (opc >> 10) & 7; // opc[12:10]
+			imm |= low_imm << 3; // imm[5:3]
+			return new CompFsdSp(imm, rs);
 		}
 		else if (o15_12 == 0xc000 || o15_12 == 0xd000) // C.SWSP
 		{
