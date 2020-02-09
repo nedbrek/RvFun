@@ -70,17 +70,17 @@ int main(int argc, char **argv)
 		uint32_t opc_sz = 2;
 
 		uint32_t full_inst = opc;
-		Inst *inst = nullptr;
+		std::unique_ptr<Inst> inst;
 		if ((opc & 3) == 3)
 		{
 			// 32 bit instruction
 			opc_sz = 4;
 			full_inst |= state.readMem(pc + 2, 2) << 16;
 
-			inst = decode32(full_inst);
+			inst.reset(decode32(full_inst));
 		}
 		else
-			inst = decode16(full_inst);
+			inst.reset(decode16(full_inst));
 
 		if (debug)
 			std::cout
