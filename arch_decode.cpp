@@ -3541,6 +3541,114 @@ private:
 	uint8_t rd_;
 };
 
+/// Control register operators
+class ControlRegOp : public Inst
+{
+public:
+	ControlRegOp(uint8_t op, uint16_t csr, uint8_t r1, uint8_t rd)
+	: op_(op)
+	, csr_(csr)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	// TODO: control reg dep?
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override
+	{
+		if (op_ > 4)
+			return {}; // immediate
+
+		return {RegNum(r1_)};
+	}
+
+	void execute(ArchState &state) const override
+	{
+		enum
+		{
+			CSRRW = 1, // 5 for imm
+			CSRRS = 2, // 6 for imm
+			CSRRC = 3  // 7 for imm
+		};
+		const uint8_t base_op = op_ & 3; // stip imm indicator
+
+		// no read if write goes to 0 (except in bitwise forms, which always read)
+		const bool read_csr = rd_ != 0 || base_op != CSRRW;
+
+		// no write from r0, except in swap form
+		const bool write_csr = r1_ != 0 || base_op == CSRRW;
+
+		const uint64_t rval =
+		    op_ > 4 ? r1_ : ( // use reg spec as imm
+		    r1_ == 0 ? 0 :
+		    state.getReg(r1_)
+		);
+
+		const uint64_t cval = read_csr ? state.getCr(csr_) : 0;
+		uint64_t out_cval = cval;
+
+		const uint64_t out_rval = cval; // rd = read CR
+		switch (base_op)
+		{
+		//case 0 is ECALL
+		case CSRRW:
+			out_cval = rval; // write CR with r1
+			break;
+
+		case CSRRS:
+			out_cval |= rval; // write CR | r1
+			break;
+
+		case CSRRC: // CSRRC
+			out_cval &= ~rval; // write CR & ~r1
+			break;
+		}
+
+		if (rd_ != 0)
+			state.setReg(rd_, out_rval);
+
+		if (write_csr)
+			state.setCr(csr_, out_cval);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		os << std::left << std::setw(MNE_WIDTH);
+		switch (op_)
+		{
+		case 1: os << "CSRRW"; break;
+		case 2: os << "CSRRS"; break;
+		case 3: os << "CSRRC"; break;
+		case 5: os << "CSRRWI"; break;
+		case 6: os << "CSRRSI"; break;
+		case 7: os << "CSRRCI"; break;
+		}
+		os << ' ';
+
+		printReg(os, rd_) << " = c"  << csr_ << ", ";
+
+		// immediate vs reg
+		if (op_ < 4)
+			os << 'r';
+		os << uint32_t(r1_);
+
+		return os.str();
+	}
+
+	// TODO: differentiate between blocking and non-blocking ops
+	OpType opType() const override { return OT_SYSTEM; }
+
+private:
+	uint8_t op_;
+	uint16_t csr_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -3791,7 +3899,9 @@ Inst* decode32(uint32_t opc)
 			// TODO: capture opc[20]
 			return new Ecall();
 		}
-		return nullptr; // TODO
+		//else CSRR
+		const uint16_t csr = (opc >> 20) & 0xfff; // opc[31:20]
+		return new ControlRegOp(op, csr, r1, rd);
 	}
 
 	case   8: // custom0

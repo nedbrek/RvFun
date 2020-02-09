@@ -2,6 +2,7 @@
 #define RVFUN_SIMPLE_ARCH_STATE_HPP
 
 #include "arch_state.hpp"
+#include <map>
 
 namespace rvfun
 {
@@ -38,6 +39,9 @@ public:
 		freg[num] = val;
 	}
 
+	uint64_t getCr(uint32_t num) const override;
+	void     setCr(uint32_t num, uint64_t val) override;
+
 	uint64_t readMem(uint64_t va, uint32_t sz) const override;
 	void writeMem(uint64_t va, uint32_t sz, uint64_t val) override;
 
@@ -59,11 +63,16 @@ public:
 	System* getSys() override { return sys_; }
 	const System* getSys() const override { return sys_; }
 
-private:
+private: // methods
+	/// remap sub csrs to parent
+	uint16_t parentCsr(uint16_t csr) const;
+
+private: // data
 	static constexpr uint32_t NUM_REGS = 32;
 	uint64_t pc_ = 0;
 	uint64_t ireg[NUM_REGS] = {0,};
 	double freg[NUM_REGS] = {0,};
+	std::map<uint16_t, uint64_t> cregs_;
 	ArchMem *mem_ = nullptr;
 	System *sys_ = nullptr;
 };
