@@ -10,6 +10,18 @@
 #include <iostream>
 #include <sstream>
 
+namespace
+{
+uint32_t padTo16(uint32_t begin)
+{
+	uint32_t pad = begin & 15;
+	if (pad)
+		begin += 16 - pad;
+
+	return begin;
+}
+}
+
 namespace rvfun
 {
 HostSystem::HostSystem()
@@ -121,22 +133,88 @@ bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 	}
 	std::cout << "Top of memory is 0x" << std::hex << top_of_mem_ << std::dec << std::endl;
 
+	// set entry point
+	state.setPc(eh64->e_entry);
+
+	prog_name_ = prog_name; // save program name
+	return false; // no errors
+}
+
+void HostSystem::addArg(const std::string &s)
+{
+	args_.emplace_back(s);
+}
+
+void HostSystem::completeEnv(ArchState &state)
+{
 	// allocate SP
-	const uint32_t stack_sz = 32 * 1024;
+	const uint32_t stack_sz = 64 * 1024;
 	const uint64_t sp = 0x10000000;
 	mem_->addBlock(sp, stack_sz);
 
-	state.setReg(Reg::SP, sp + stack_sz/2); // put SP in the middle
+	// complete environment
+	const uint32_t sim_argc = args_.size() + 1; // include argv[0] (program name)
+	std::vector<uint64_t> sim_argv;
 
-	// set entry point
-	state.setPc(eh64->e_entry);
+	//---figure out how big it all is
+	uint32_t env_sz = padTo16(prog_name_.size() + 1); // argv[0] (program name)
+
+	for (const auto &arg : args_)
+	{
+		env_sz += padTo16(arg.size()+1);
+	}
+
+	const uint64_t top_of_stack = sp + stack_sz;
+	const uint64_t start_pt = top_of_stack - env_sz - 16; // leave 16B near top of stack
+	std::cout << "Copying environment to "
+	    << std::hex << start_pt << std::dec
+	    << ' ' << env_sz << " bytes."
+	    << std::endl;
+
+	// copy the args into virtual environment
+	uint64_t ptr = start_pt;
+	sim_argv.emplace_back(ptr);
+	for (const auto &c : prog_name_)
+		state.writeMem(ptr++, 1, c);
+	state.writeMem(ptr++, 1, 0);
+	ptr = padTo16(ptr);
+
+	for(const auto &arg : args_)
+	{
+		sim_argv.emplace_back(ptr);
+		for (const auto &c : arg)
+			state.writeMem(ptr++, 1, c);
+		state.writeMem(ptr++, 1, 0);
+		ptr = padTo16(ptr);
+	}
+
+	// TODO envp
+	std::cout << "Environment configured. End ptr: " << std::hex << ptr << std::dec << std::endl;
+
+	const uint64_t final_sp = sp + stack_sz/2;
+
+	// write args to stack
+	ptr = final_sp;
+	//--- argc
+	state.writeMem(ptr, 8, sim_argc);
+	ptr += 8;
+
+	//--- argv[]
+	for (const auto &a : sim_argv)
+	{
+		state.writeMem(ptr, 8, a);
+		ptr += 8;
+	}
+	//--- TODO envp
+
+	state.setReg(Reg::SP, final_sp); // put SP in the middle
+	state.setReg(10, sim_argc);
+	state.setReg(11, final_sp); // argv
 
 	// set up standard file descriptors
 	fds_.push_back(-1); // TODO: remap stdin
 	fds_.push_back(1); // TODO: remap stdout
 	fds_.push_back(2); // TODO: remap stderr
-
-	return false;
 }
 
 void HostSystem::exit(ArchState &state)

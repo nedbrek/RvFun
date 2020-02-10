@@ -47,14 +47,25 @@ int main(int argc, char **argv)
 	HostSystem host;
 	SimpleArchState state;
 
+	state.setSys(&host);
+	state.setMem(host.getMem());
+
 	if (host.loadElf(prog_name, state))
 	{
 		std::cerr << "Failure loading ELF." << std::endl;
 		return 1;
 	}
 
-	state.setSys(&host);
-	state.setMem(host.getMem());
+	++optind;
+	while (optind < argc)
+	{
+		const char *arg = argv[optind];
+		std::cout << "Add argument: " << arg << std::endl;
+		host.addArg(arg);
+		++optind;
+	}
+
+	host.completeEnv(state);
 
 	uint64_t icount = 0;
 	while (1)
