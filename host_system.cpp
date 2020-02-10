@@ -130,6 +130,11 @@ bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 	// set entry point
 	state.setPc(eh64->e_entry);
 
+	// set up standard file descriptors
+	fds_.push_back(-1); // TODO: remap stdin
+	fds_.push_back(1); // TODO: remap stdout
+	fds_.push_back(2); // TODO: remap stderr
+
 	return false;
 }
 
@@ -158,23 +163,59 @@ void HostSystem::fstat(ArchState &state)
 		return;
 	}
 
+	if (!path_p)
+	{
+		std::cerr << " fstat fd=" << fd
+		    << " path=null ptr";
+		state.setReg(10, -1); // error
+		return;
+	}
+
+	bool bad_chars = false;
+	std::string pathname;
+	char val = state.readMem(path_p, 1);
+	while (val)
+	{
+		if (val < 32 || val > 127)
+			bad_chars = true;
+		else
+			pathname.push_back(val);
+
+		++path_p;
+		val = state.readMem(path_p, 1);
+	}
+
+	if (pathname.empty())
+	{
+		// pass through
+		//--- check open files
+		if (fd >= fds_.size())
+		{
+			state.setReg(10, -1); // error
+			return;
+		}
+
+		struct stat s;
+		const int ret = ::fstat(fds_[fd], &s);
+
+		if (ret == 0)
+		{
+			state.writeMem(buf+16, 4, s.st_mode); // mode
+			state.writeMem(buf+56, 8, s.st_blksize); // block size
+			// TODO: other fields?
+		}
+
+		state.setReg(10, ret);
+		return;
+	}
+	//else
 	std::cerr << " fstat fd=" << fd
 	          << " path='";
-	if (path_p)
-	{
-		uint8_t val = state.readMem(path_p, 1);
-		if (!val)
-			std::cerr << "(null str)";
-
-		while (val)
-		{
-			std::cerr << val;
-
-			++path_p;
-			val = state.readMem(path_p, 1);
-		}
-		std::cerr << '\'';
-	}
+	if (!bad_chars)
+		std::cerr << pathname;
+	else
+		std::cerr << "(bad path)";
+	std::cerr << '\'';
 
 	state.setReg(10, 0); // success!
 }
@@ -222,7 +263,8 @@ void HostSystem::open(ArchState &state)
 		std::cerr << "(bad path)";
 	std:: cerr << ' ' << flags << ' ' << mode;
 
-	const uint32_t new_fd = 3;
+	// TODO: whitelist file access and redirect writes
+	const uint32_t new_fd = ::open(pathname.c_str(), O_RDONLY);
 	state.setReg(10, new_fd);
 }
 
