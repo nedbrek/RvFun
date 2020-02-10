@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <iostream>
 #include <sstream>
 
@@ -265,7 +266,11 @@ void HostSystem::open(ArchState &state)
 
 	// TODO: whitelist file access and redirect writes
 	const uint32_t new_fd = ::open(pathname.c_str(), O_RDONLY);
-	state.setReg(10, new_fd);
+
+	const uint32_t sim_fd = fds_.size();
+	fds_.emplace_back(new_fd);
+
+	state.setReg(10, sim_fd);
 }
 
 void HostSystem::readlinkat(ArchState &state)
@@ -385,6 +390,30 @@ void HostSystem::uname(ArchState &state)
 	// version, machine, domainname
 
 	state.setReg(10, 0); // success
+}
+
+void HostSystem::read(ArchState &state)
+{
+	const uint64_t fd = state.getReg(10);
+	const uint64_t buf = state.getReg(11);
+	const uint64_t ct = state.getReg(12);
+
+	if (fd >= fds_.size() || buf == 0)
+	{
+		state.setReg(10, -1); // error
+		return;
+	}
+
+	const auto sim_fd = fds_[fd];
+	const std::unique_ptr<uint8_t[]> sim_buf(new uint8_t[ct ? ct : 1]);
+
+	const int ret = ::read(sim_fd, sim_buf.get(), ct);
+	for (int b = 0; b < ret; ++b)
+	{
+		state.writeMem(buf+b, 1, sim_buf[b]);
+	}
+
+	state.setReg(10, ret);
 }
 
 uint64_t HostSystem::writeBuf(ArchState &state, uint64_t buf, uint64_t ct)

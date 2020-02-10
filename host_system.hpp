@@ -4,6 +4,7 @@
 #include "system.hpp"
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace rvfun
 {
@@ -27,6 +28,7 @@ public:
 	void readlinkat(ArchState &state) override;
 	void sbrk(ArchState &state) override;
 	void uname(ArchState &state) override;
+	void read(ArchState &state) override;
 	void write(ArchState &state) override;
 	void writev(ArchState &state) override;
 

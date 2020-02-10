@@ -15,6 +15,7 @@ public:
 	virtual void readlinkat(ArchState &state) = 0;
 	virtual void sbrk(ArchState &state) = 0;
 	virtual void uname(ArchState &state) = 0;
+	virtual void read(ArchState &state) = 0;
 	virtual void write(ArchState &state) = 0;
 	virtual void writev(ArchState &state) = 0;
 };
