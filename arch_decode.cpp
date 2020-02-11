@@ -2066,6 +2066,10 @@ public:
 			state.getSys()->sbrk(state);
 			break;
 
+		case 222: // mmap
+			state.getSys()->mmap(state);
+			break;
+
 		default:
 			std::cerr << " Unimplemented system call " << syscall << std::endl;
 			state.setReg(10, 0); // return value

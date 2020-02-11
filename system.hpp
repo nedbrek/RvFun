@@ -11,6 +11,7 @@ class System
 public:
 	virtual void exit(ArchState &state) = 0;
 	virtual void fstat(ArchState &state) = 0;
+	virtual void mmap(ArchState &state) = 0;
 	virtual void open(ArchState &state) = 0;
 	virtual void readlinkat(ArchState &state) = 0;
 	virtual void sbrk(ArchState &state) = 0;

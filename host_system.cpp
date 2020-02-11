@@ -12,11 +12,11 @@
 
 namespace
 {
-uint32_t padTo16(uint32_t begin)
+uint64_t padTo16(uint64_t begin, uint64_t alignment = 16)
 {
-	uint32_t pad = begin & 15;
+	uint32_t pad = begin & (alignment - 1);
 	if (pad)
-		begin += 16 - pad;
+		begin += alignment - pad;
 
 	return begin;
 }
@@ -50,7 +50,7 @@ bool HostSystem::loadElf(const char *prog_name, ArchState &state)
 		return true;
 	}
 	const size_t file_size = s.st_size;
-	uint8_t *elf_mem = static_cast<uint8_t*>(mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, ifd, 0));
+	uint8_t *elf_mem = static_cast<uint8_t*>(::mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, ifd, 0));
 	if (!elf_mem)
 	{
 		std::cerr << "Failed to mmap " << prog_name << std::endl;
@@ -165,6 +165,7 @@ void HostSystem::completeEnv(ArchState &state)
 	}
 
 	const uint64_t top_of_stack = sp + stack_sz;
+	mmap_zone_ = top_of_stack + sp; // push mmap way up
 	const uint64_t start_pt = top_of_stack - env_sz - 16; // leave 16B near top of stack
 	std::cout << "Copying environment to "
 	    << std::hex << start_pt << std::dec
@@ -297,6 +298,46 @@ void HostSystem::fstat(ArchState &state)
 	std::cerr << '\'';
 
 	state.setReg(10, 0); // success!
+}
+
+void HostSystem::mmap(ArchState &state)
+{
+	const uint64_t addr = state.getReg(10);
+	const uint64_t len = state.getReg(11);
+	const uint64_t prot = state.getReg(12);
+	const uint64_t flags = state.getReg(13);
+	const uint64_t fd = state.getReg(14);
+	const uint64_t offset = state.getReg(15);
+
+	const uint64_t out_addr = mmap_zone_;
+	mmap_zone_ += padTo16(len, 4096);
+	if (flags & 0x20)
+	{
+		// annonymous (no file)
+		mem_->addBlock(out_addr, len);
+		state.setReg(10, out_addr); // success!
+		return; // done
+	}
+
+	std::cerr << ' ' << __FUNCTION__
+	    << ' ' << addr
+	    << ' ' << len
+	    << ' ' << prot
+	    << ' ' << flags
+	    << ' ' << fd
+	    << ' ' << offset
+	;
+	if (fd <= 2 || fd >= fds_.size() || len == 0)
+	{
+		state.setReg(10, -1); // error
+		return;
+	}
+
+	void *ptr = ::mmap(nullptr, len, prot, flags, fds_[fd], offset);
+	mem_->addBlock(out_addr, len, ptr);
+	::munmap(ptr, len);
+
+	state.setReg(10, out_addr); // success!
 }
 
 void HostSystem::open(ArchState &state)

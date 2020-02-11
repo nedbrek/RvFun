@@ -27,6 +27,7 @@ public:
 	//---from System
 	void exit(ArchState &state) override;
 	void fstat(ArchState &state) override;
+	void mmap(ArchState &state) override;
 	void open(ArchState &state) override;
 	void readlinkat(ArchState &state) override;
 	void sbrk(ArchState &state) override;
@@ -44,6 +45,7 @@ private: // data
 	std::string prog_name_; ///< argv[0]
 	std::vector<std::string> args_; ///< argv[1..n]
 	uint64_t top_of_mem_ = 0; ///< cache highest block in mem image
+	uint64_t mmap_zone_ = 0;
 	bool exited_ = false; ///< track calls to exit()
 };
 
