@@ -18,8 +18,9 @@ int main(int argc, char **argv)
 	}
 
 	bool debug = false;
+	bool verbose = false;
 	uint64_t max_icount = 0;
-	int optc = getopt_long(argc, argv, "di:", nullptr, nullptr);
+	int optc = getopt_long(argc, argv, "di:v", nullptr, nullptr);
 	while (optc != -1)
 	{
 		if (optc == 'd')
@@ -30,8 +31,12 @@ int main(int argc, char **argv)
 		{
 			max_icount = strtoll(optarg, nullptr, 10);
 		}
+		else if (optc == 'v')
+		{
+			verbose = true;
+		}
 
-		optc = getopt_long(argc, argv, "i:", nullptr, nullptr);
+		optc = getopt_long(argc, argv, "di:v", nullptr, nullptr);
 	}
 
 	// pull unused arg from getopt
@@ -49,6 +54,7 @@ int main(int argc, char **argv)
 
 	state.setSys(&host);
 	state.setMem(host.getMem());
+	state.setDebug(verbose);
 
 	if (host.loadElf(prog_name, state))
 	{
@@ -77,7 +83,7 @@ int main(int argc, char **argv)
 		}
 
 		const uint64_t pc = state.getPc();
-		const uint16_t opc = state.readMem(pc, 2);
+		const uint16_t opc = state.readImem(pc, 2);
 		uint32_t opc_sz = 2;
 
 		uint32_t full_inst = opc;
@@ -86,7 +92,7 @@ int main(int argc, char **argv)
 		{
 			// 32 bit instruction
 			opc_sz = 4;
-			full_inst |= state.readMem(pc + 2, 2) << 16;
+			full_inst |= state.readImem(pc + 2, 2) << 16;
 
 			inst.reset(decode32(full_inst));
 		}

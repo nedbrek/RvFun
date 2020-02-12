@@ -2,6 +2,7 @@
 #define RVFUN_SIMPLE_ARCH_STATE_HPP
 
 #include "arch_state.hpp"
+#include <iostream>
 #include <map>
 
 namespace rvfun
@@ -17,6 +18,8 @@ public:
 	void setMem(ArchMem *mem) { mem_ = mem; }
 	void setSys(System *sys) { sys_ = sys; }
 
+	void setDebug(bool b = true) { debug_ = b; }
+
 	//---from ArchState
 	uint64_t getReg(uint32_t num) const override
 	{
@@ -25,8 +28,12 @@ public:
 
 	void setReg(uint32_t num, uint64_t val) override
 	{
-		if (num != 0)
-			ireg[num] = val;
+		if (num == 0)
+			return; // no-op
+
+		ireg[num] = val;
+		if (debug_)
+			std::cout << " setReg " << num << ' ' << val << ' ';
 	}
 
 	double getFloat(uint32_t num) const override
@@ -42,6 +49,7 @@ public:
 	uint64_t getCr(uint32_t num) const override;
 	void     setCr(uint32_t num, uint64_t val) override;
 
+	uint64_t readImem(uint64_t va, uint32_t sz) const override;
 	uint64_t readMem(uint64_t va, uint32_t sz) const override;
 	void writeMem(uint64_t va, uint32_t sz, uint64_t val) override;
 
@@ -75,6 +83,7 @@ private: // data
 	std::map<uint16_t, uint64_t> cregs_;
 	ArchMem *mem_ = nullptr;
 	System *sys_ = nullptr;
+	bool debug_ = false;
 };
 
 }

@@ -79,13 +79,23 @@ void SimpleArchState::setCr(const uint32_t csr, uint64_t val)
 	}
 }
 
-uint64_t SimpleArchState::readMem(uint64_t va, uint32_t sz) const
+uint64_t SimpleArchState::readImem(uint64_t va, uint32_t sz) const
 {
 	return mem_->readMem(va, sz);
 }
 
+uint64_t SimpleArchState::readMem(uint64_t va, uint32_t sz) const
+{
+	const uint64_t val = mem_->readMem(va, sz);
+	if (debug_)
+		std::cout << " readMem " << va << ' ' << sz << ' ' << val;
+	return val;
+}
+
 void SimpleArchState::writeMem(uint64_t va, uint32_t sz, uint64_t val)
 {
+	if (debug_)
+		std::cout << " writeMem " << va << ' ' << sz << ' ' << val;
 	mem_->writeMem(va, sz, val);
 }
 
