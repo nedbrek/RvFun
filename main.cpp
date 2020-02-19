@@ -82,45 +82,19 @@ int main(int argc, char **argv)
 			break;
 		}
 
-		const uint64_t pc = state.getPc();
-		const uint16_t opc = state.readImem(pc, 2);
 		uint32_t opc_sz = 2;
-
-		uint32_t full_inst = opc;
-		std::unique_ptr<Inst> inst;
-		if ((opc & 3) == 3)
-		{
-			// 32 bit instruction
-			opc_sz = 4;
-			full_inst |= state.readImem(pc + 2, 2) << 16;
-
-			inst.reset(decode32(full_inst));
-		}
-		else
-			inst.reset(decode16(full_inst));
+		uint32_t full_inst = 0;
 
 		if (debug)
-			std::cout
-			          << std::setw(12) << icount << ' '
-			          << std::hex
-			          << std::setw(12) << pc << ' '
-			          << std::setw(8) << full_inst << ' '
-						 << std::dec;
+			std::cout << std::setw(12) << icount << ' ';
 
+		std::unique_ptr<Inst> inst(decode(state, opc_sz, full_inst, debug));
 		if (!inst)
 		{
-			std::cout << "(null inst)(" << std::hex << full_inst << std::dec << ')' << '\n';
 			state.incPc(opc_sz);
 		}
 		else
 		{
-			if (debug)
-			{
-				if (opc_sz == 4)
-					std::cout << ' ' << ' '; // shift for C.
-				std::cout << inst->disasm();
-			}
-
 			inst->execute(state);
 		}
 

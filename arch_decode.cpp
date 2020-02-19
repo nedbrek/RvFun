@@ -4053,5 +4053,45 @@ Inst* decode32(uint32_t opc)
 	return nullptr;
 }
 
+Inst* decode(ArchState &state, uint32_t &opc_sz, uint32_t &full_inst, bool debug)
+{
+	Inst *inst = nullptr;
+	const uint64_t pc = state.getPc();
+	const uint16_t opc = state.readImem(pc, 2);
+	opc_sz = 2;
+
+	full_inst = opc;
+	if ((opc & 3) == 3)
+	{
+		// 32 bit instruction
+		opc_sz = 4;
+		full_inst |= state.readImem(pc + 2, 2) << 16;
+
+		inst = decode32(full_inst);
+	}
+	else
+		inst = decode16(full_inst);
+
+	if (debug)
+		std::cout
+		          << std::hex
+		          << std::setw(12) << pc << ' '
+		          << std::setw(8) << full_inst << ' '
+					 << std::dec;
+
+	if (!inst)
+	{
+		std::cout << "(null inst)(" << std::hex << full_inst << std::dec << ')' << '\n';
+	}
+	else if (debug)
+	{
+		if (opc_sz == 4)
+			std::cout << ' ' << ' '; // shift for C.
+		std::cout << inst->disasm();
+	}
+
+	return inst;
+}
+
 } // namespace
 

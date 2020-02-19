@@ -77,6 +77,7 @@ public:
 
 Inst* decode16(uint32_t opc);
 Inst* decode32(uint32_t opc);
+Inst* decode(ArchState &state, uint32_t &opc_sz, uint32_t &full_inst, bool debug);
 
 } // namespace
 
