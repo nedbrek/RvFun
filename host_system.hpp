@@ -21,6 +21,7 @@ public:
 	ArchMem* getMem();
 	bool loadElf(const char *prog_name, ArchState &state);
 	void addArg(const std::string &s);
+	void setStdin(const std::string &s) { stdin_file_ = s; }
 	void completeEnv(ArchState &state);
 	bool hadExit() const { return exited_; }
 
@@ -43,6 +44,7 @@ private: // data
 	std::unique_ptr<SparseMem> mem_; ///< memory image
 	std::vector<uint32_t> fds_; ///< open file descriptors
 	std::string prog_name_; ///< argv[0]
+	std::string stdin_file_; ///< file to use for stdin
 	std::vector<std::string> args_; ///< argv[1..n]
 	uint64_t top_of_mem_ = 0; ///< cache highest block in mem image
 	uint64_t mmap_zone_ = 0;

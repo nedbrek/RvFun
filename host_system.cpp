@@ -213,7 +213,22 @@ void HostSystem::completeEnv(ArchState &state)
 	state.setReg(11, final_sp); // argv
 
 	// set up standard file descriptors
-	fds_.push_back(-1); // TODO: remap stdin
+	if (stdin_file_.empty())
+	{
+		fds_.push_back(-1); // block access to stdin
+	}
+	else
+	{
+		const int sim_stdin = ::open(stdin_file_.c_str(), O_RDONLY);
+		if (sim_stdin < 0)
+		{
+			std::cerr << "No stdin " << stdin_file_ << std::endl;
+			fds_.push_back(-1); // block access to stdin
+		}
+		else
+			fds_.push_back(sim_stdin);
+	}
+
 	fds_.push_back(1); // TODO: remap stdout
 	fds_.push_back(2); // TODO: remap stderr
 }

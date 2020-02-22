@@ -20,7 +20,8 @@ int main(int argc, char **argv)
 	bool debug = false;
 	bool verbose = false;
 	uint64_t max_icount = 0;
-	int optc = getopt_long(argc, argv, "di:v", nullptr, nullptr);
+	const char *optstring = "+di:v";
+	int optc = getopt_long(argc, argv, optstring, nullptr, nullptr);
 	while (optc != -1)
 	{
 		if (optc == 'd')
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
 			verbose = true;
 		}
 
-		optc = getopt_long(argc, argv, "di:v", nullptr, nullptr);
+		optc = getopt_long(argc, argv, optstring, nullptr, nullptr);
 	}
 
 	// pull unused arg from getopt
@@ -71,6 +72,7 @@ int main(int argc, char **argv)
 		++optind;
 	}
 
+	host.setStdin(std::string(prog_name) + ".stdin"); // TODO: make an option
 	host.completeEnv(state);
 
 	uint64_t icount = 0;
