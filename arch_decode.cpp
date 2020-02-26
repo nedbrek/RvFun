@@ -3776,6 +3776,43 @@ private:
 	uint8_t rd_;
 };
 
+/// Memory Fence
+class Fence : public Inst
+{
+public:
+	Fence(uint16_t imm, uint8_t r1, uint8_t op, uint8_t rd)
+	: imm_(imm)
+	, r1_(r1)
+	, op_(op)
+	, rd_(rd)
+	{
+	}
+
+	// no register dependencies
+	std::vector<RegDep> dsts() const override { return {}; }
+	std::vector<RegDep> srcs() const override { return {}; }
+	uint32_t opSize() const override { return 0; }
+
+	void execute(ArchState &state) const override
+	{
+		// TODO: communitcate to archstate
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		return "FENCE";
+	}
+
+	OpType opType() const override { return OT_SYSTEM; }
+
+private:
+	uint16_t imm_;
+	uint8_t r1_;
+	uint8_t op_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -3809,7 +3846,10 @@ Inst* decode32(uint32_t opc)
 	}
 
 	case  12: // misc MEM
-		return nullptr; // TODO Mem
+	{
+		const uint16_t imm = (opc >> 20) & 0xfff; // opc[31:20]
+		return new Fence(imm, r1, op, rd);
+	}
 
 	case  16: // op imm
 	{
