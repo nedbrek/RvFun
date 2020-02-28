@@ -2379,7 +2379,7 @@ public:
 
 	void execute(ArchState &state) const override
 	{
-		const uint64_t amt = state.getReg(r2_) & 0x3f; // use low 6 bits
+		const uint64_t amt = state.getReg(r2_) & 0x1f; // use low 5 bits
 		const uint32_t vrd = amt < 31 ? (state.getReg(r1_) << amt) : 0;
 		const int64_t svrd = int32_t(vrd); // signed extend
 
