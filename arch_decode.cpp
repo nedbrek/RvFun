@@ -217,8 +217,19 @@ public:
 	std::string disasm() const override
 	{
 		std::ostringstream os;
-		os << "C.JR       ";
-		printReg(os, rd_);
+		os << 'C' << '.';
+		os << std::left << std::setw(MNE_WIDTH);
+
+		if (rd_ == 1) // jump to link reg (return)
+		{
+			os << "RET";
+		}
+		else // jump to some other reg
+		{
+			os << "JR" << ' ';
+			printReg(os, rd_);
+		}
+
 		return os.str();
 	}
 
