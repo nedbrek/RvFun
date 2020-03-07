@@ -44,6 +44,8 @@ public:
 	void setFloat(uint32_t num, double val) override
 	{
 		freg[num] = val;
+		if (debug_)
+			std::cout << " setFloat " << num << ' ' << val << ' ';
 	}
 
 	uint64_t getCr(uint32_t num) const override;
