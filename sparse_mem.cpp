@@ -41,7 +41,7 @@ void SparseMem::addBlock(uint64_t va, uint32_t sz, const void *data)
 	for (const auto &b : blocks_)
 	{
 		const uint64_t block_end = b->va + b->sz;
-		if (block_end + 1 == va) // grow block
+		if (block_end == va) // grow block
 		{
 			// TODO growing through gap
 
@@ -83,17 +83,17 @@ uint64_t SparseMem::readMem(uint64_t va, uint32_t sz) const
 				return ret;
 			}
 			//else
-			std::cerr << "Cross block access" << std::endl; // TODO - handle
+			std::cerr << " Cross block read" << std::endl; // TODO - handle
 		}
 	}
 
-	std::cerr << "Access outside of allocated memory: "
+	std::cerr << " Access outside of allocated memory: "
 		 << std::hex << va << std::dec << ' ' << sz << std::endl;
 
 	return ret;
 }
 
-void SparseMem::writeMem(uint64_t va, uint32_t sz, uint64_t val)
+void SparseMem::writeMem(const uint64_t va, const uint32_t sz, const uint64_t val)
 {
 	for (const auto &b : blocks_)
 	{
@@ -109,11 +109,11 @@ void SparseMem::writeMem(uint64_t va, uint32_t sz, uint64_t val)
 				return;
 			}
 			//else
-			std::cerr << "Cross block access" << std::endl; // TODO - handle
+			std::cerr << " Cross block write" << std::endl; // TODO - handle
 		}
 	}
 
-	std::cerr << "Write access outside of allocated memory: "
+	std::cerr << " Write access outside of allocated memory: "
 		 << std::hex << va << std::dec << ' ' << sz << std::endl;
 }
 
