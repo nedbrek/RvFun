@@ -148,7 +148,7 @@ void HostSystem::addArg(const std::string &s)
 void HostSystem::completeEnv(ArchState &state)
 {
 	// allocate SP
-	const uint32_t stack_sz = 64 * 1024;
+	const uint32_t stack_sz = 4096 * 1024; // 4 MB
 	const uint64_t sp = 0x10000000;
 	mem_->addBlock(sp, stack_sz);
 
