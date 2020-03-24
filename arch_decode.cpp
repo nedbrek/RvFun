@@ -157,7 +157,7 @@ public:
 		const uint32_t rs = state.getReg(rsd_);
 		const uint32_t r2 = state.getReg(r2_);
 
-		uint32_t v = 0; // TODO: sign extend to 64
+		uint32_t v = 0;
 		switch (fun_)
 		{
 		case 0: v = rs - r2; break;
@@ -166,7 +166,9 @@ public:
 		//case 3: //rsvd
 		}
 
-		state.setReg(rsd_, v);
+		// sign-extend
+		const int32_t tmp = v;
+		state.setReg(rsd_, int64_t(tmp));
 		state.incPc(2);
 	}
 
