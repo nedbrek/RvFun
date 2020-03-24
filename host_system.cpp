@@ -384,7 +384,7 @@ void HostSystem::open(ArchState &state)
 		pval = state.readMem(path+off, 1);
 	}
 
-	const std::string pathname = pns.str();
+	std::string pathname = pns.str();
 	if (pathname == "/dev/tty")
 	{
 		state.setReg(10, 1); // stdout
@@ -399,7 +399,16 @@ void HostSystem::open(ArchState &state)
 	std:: cerr << ' ' << flags << ' ' << mode;
 
 	// TODO: whitelist file access and redirect writes
-	const uint32_t new_fd = ::open(pathname.c_str(), O_RDONLY);
+	int host_flags = O_RDONLY;
+	if (flags != 0)
+	{
+		host_flags = O_WRONLY | O_CREAT | O_TRUNC;
+		std::ostringstream os;
+		os << pathname << '.' << getpid();
+		pathname = os.str();
+		std::cerr << " openat write file " << pathname << std::endl;
+	}
+	const uint32_t new_fd = ::open(pathname.c_str(), host_flags, 0666);
 
 	const uint32_t sim_fd = fds_.size();
 	fds_.emplace_back(new_fd);
@@ -569,6 +578,12 @@ uint64_t HostSystem::writeBuf(ArchState &state, uint64_t buf, uint64_t ct)
 void HostSystem::write(ArchState &state)
 {
 	const uint64_t fd = state.getReg(10);
+	if (fd >= fds_.size())
+	{
+		state.setReg(10, -1); // error
+		return;
+	}
+
 	const uint64_t buf = state.getReg(11);
 	const uint64_t ct = state.getReg(12);
 
@@ -579,7 +594,18 @@ void HostSystem::write(ArchState &state)
 	}
 	else
 	{
-		std::cerr << " Write to fd " << fd << std::endl;
+		const uint32_t sim_fd = fds_[fd];
+		for (uint32_t i = 0; i < ct; ++i)
+		{
+			// TODO: read/write larger blocks
+			const uint8_t byte = state.readImem(buf+i, 1);
+			const size_t ret = ::write(sim_fd, &byte, 1);
+			if (ret != 1)
+			{
+				state.setReg(10, -1);
+				return;
+			}
+		}
 	}
 	state.setReg(10, bytes_written);
 }
