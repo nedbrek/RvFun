@@ -12,6 +12,8 @@ class ArchState;
 class Inst
 {
 public:
+	virtual ~Inst() {}
+
 	/// Register file for dependency info
 	enum class RegFile
 	{
