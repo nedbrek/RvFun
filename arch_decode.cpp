@@ -2332,13 +2332,13 @@ public:
 
 	void execute(ArchState &state) const override
 	{
-		const uint64_t val = state.getReg(r1_);
+		const uint32_t val = state.getReg(r1_);
 
 		int32_t tmp;
 		if (arith_)
 		{
 			// calculate signed 32 bit value
-			tmp = int64_t(val) >> imm_;
+			tmp = int32_t(val) >> imm_;
 		}
 		else
 		{
