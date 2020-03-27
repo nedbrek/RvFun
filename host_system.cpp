@@ -229,8 +229,17 @@ void HostSystem::completeEnv(ArchState &state)
 			fds_.push_back(sim_stdin);
 	}
 
-	fds_.push_back(1); // TODO: remap stdout
-	fds_.push_back(2); // TODO: remap stderr
+	// remap stdout
+	std::ostringstream os;
+	os << "stdout." << getpid();
+	const uint32_t stdout_fd = ::open(os.str().c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	fds_.push_back(stdout_fd);
+
+	// remap stderr
+	os.str("");
+	os << "stderr." << getpid();
+	const uint32_t stderr_fd = ::open(os.str().c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	fds_.push_back(stderr_fd);
 }
 
 void HostSystem::exit(ArchState &state)
@@ -587,27 +596,19 @@ void HostSystem::write(ArchState &state)
 	const uint64_t buf = state.getReg(11);
 	const uint64_t ct = state.getReg(12);
 
-	uint64_t bytes_written = 0;
-	if (fd == 1) // stdout
+	const uint32_t sim_fd = fds_[fd];
+	for (uint32_t i = 0; i < ct; ++i)
 	{
-		bytes_written = writeBuf(state, buf, ct);
-	}
-	else
-	{
-		const uint32_t sim_fd = fds_[fd];
-		for (uint32_t i = 0; i < ct; ++i)
+		// TODO: read/write larger blocks
+		const uint8_t byte = state.readImem(buf+i, 1);
+		const size_t ret = ::write(sim_fd, &byte, 1);
+		if (ret != 1)
 		{
-			// TODO: read/write larger blocks
-			const uint8_t byte = state.readImem(buf+i, 1);
-			const size_t ret = ::write(sim_fd, &byte, 1);
-			if (ret != 1)
-			{
-				state.setReg(10, -1);
-				return;
-			}
+			state.setReg(10, -1);
+			return;
 		}
 	}
-	state.setReg(10, bytes_written);
+	state.setReg(10, ct);
 }
 
 void HostSystem::writev(ArchState &state)
