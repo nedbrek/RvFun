@@ -3877,6 +3877,52 @@ private:
 	uint8_t rd_;
 };
 
+/// Float Convert Single and Double (FCVT.S.D and FCVT.D.S)
+class FcvtDbl : public Inst
+{
+public:
+	FcvtDbl(bool dbl, uint8_t rm, uint8_t r1, uint8_t rd)
+	: dbl_(dbl)
+	, rm_(rm)
+	, r1_(r1)
+	, rd_(rd)
+	{
+	}
+
+	std::vector<RegDep> dsts() const override { return {RegDep(RegNum(rd_), RegFile::FLOAT)}; }
+	std::vector<RegDep> srcs() const override { return {RegDep(RegNum(r1_), RegFile::FLOAT)}; }
+
+	void execute(ArchState &state) const override
+	{
+		// TODO: rounding modes
+
+		// either way, a double gets shortened (either on in or out)
+		const double dval = state.getFloat(r1_);
+		const float fval = dval;
+		state.setFloat(rd_, fval);
+
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		std::ostringstream mne;
+		mne << "FCVT." << (dbl_ ? 'D' : 'S') << '.' << (dbl_ ? 'S' : 'D');
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+		printReg(os, rd_, true) << " = f" << uint32_t(r1_);
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_FP; }
+
+private:
+	bool dbl_;
+	uint8_t rm_;
+	uint8_t r1_;
+	uint8_t rd_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -4078,6 +4124,10 @@ Inst* decode32(uint32_t opc)
 		if (mask1 == 0x10) // FSGN
 		{
 			return new Fsign(dbl, op, r2, r1, rd);
+		}
+		if (mask1 == 0x20) // FCVT.S.D and FCVT.D.S
+		{
+			return new FcvtDbl(dbl, op, r1, rd);
 		}
 		if (mask1 == 0x2c) // FSQRT
 		{
