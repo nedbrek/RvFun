@@ -2182,10 +2182,7 @@ public:
 			break;
 
 		case 1: // SLL
-			if (vr2 < 63)
-				vd = vr1 << vr2;
-			else
-				vd = 0;
+			vd = vr1 << (vr2 & 0x3f); // only use bits[5:0]
 			break;
 
 		case 2: // SLT
@@ -2203,17 +2200,11 @@ public:
 		case 5:
 			if (op30_) // SRA
 			{
-				if (vr2 < 63)
-					vd = int64_t(vr1) >> vr2;
-				else
-					vd = int64_t(vr1) < 0 ? -1 : 0;
+				vd = int64_t(vr1) >> (vr2 & 0x3f);
 			}
 			else // SRL
 			{
-				if (vr2 < 63)
-					vd = vr1 >> vr2;
-				else
-					vd = 0;
+				vd = vr1 >> (vr2 & 0x3f);
 			}
 			break;
 
