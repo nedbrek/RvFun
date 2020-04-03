@@ -16,8 +16,15 @@ public:
 	virtual uint64_t getReg(uint32_t num) const = 0;
 	virtual void     setReg(uint32_t num, uint64_t val) = 0;
 
-	virtual double getFloat(uint32_t num) const = 0;
-	virtual void   setFloat(uint32_t num, double val) = 0;
+	// due to NAN boxing, floats and doubles must be treated separately
+	virtual float getFloat(uint32_t num) const = 0;
+	virtual void  setFloat(uint32_t num, float val) = 0;
+
+	virtual double getDouble(uint32_t num) const = 0;
+	virtual void   setDouble(uint32_t num, double val) = 0;
+
+	virtual uint64_t getFpRaw(uint32_t num) const = 0;
+	virtual void     setFpRaw(uint32_t num, uint64_t val) = 0;
 
 	virtual uint64_t getCr(uint32_t num) const = 0;
 	virtual void     setCr(uint32_t num, uint64_t val) = 0;

@@ -9,6 +9,14 @@ enum
 	FRM = 2,
 	FCSR = 3
 };
+
+union IntFloat
+{
+	uint32_t wa[2];
+	uint64_t dw;
+	float f;
+	double d;
+};
 }
 
 namespace rvfun
@@ -16,6 +24,40 @@ namespace rvfun
 SimpleArchState::SimpleArchState()
 {
 	// TODO: preload some CREGS
+}
+
+float SimpleArchState::getFloat(uint32_t num) const
+{
+	IntFloat tmp;
+	tmp.dw = freg[num];
+	return tmp.f;
+}
+
+void SimpleArchState::setFloat(uint32_t num, float val)
+{
+	IntFloat tmp;
+	tmp.f = val;
+	tmp.wa[1] = 0xffffffff;
+
+	freg[num] = tmp.dw;
+	if (debug_)
+		std::cout << " setFloat " << num << ' ' << val << ' ';
+}
+
+double SimpleArchState::getDouble(uint32_t num) const
+{
+	IntFloat tmp;
+	tmp.dw = freg[num];
+	return tmp.d;
+}
+
+void SimpleArchState::setDouble(uint32_t num, double val)
+{
+	IntFloat tmp;
+	tmp.d = val;
+	freg[num] = tmp.dw;
+	if (debug_)
+		std::cout << " setFloat " << num << ' ' << val << ' ';
 }
 
 uint16_t SimpleArchState::parentCsr(uint16_t csr) const

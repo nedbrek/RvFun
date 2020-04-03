@@ -23,6 +23,7 @@ namespace
 
 union IntFloat
 {
+	uint32_t wa[2];
 	uint64_t dw;
 	int64_t sdw;
 	int32_t sw;
@@ -985,8 +986,7 @@ public:
 	void execute(ArchState &state) const override
 	{
 		const uint64_t base = state.getReg(rbase_);
-		const double val = state.getFloat(rsrc_);
-		state.writeMem(base + imm_, 8, val);
+		state.writeMem(base + imm_, 8, state.getFpRaw(rsrc_));
 		state.incPc(2);
 	}
 
@@ -1029,7 +1029,7 @@ public:
 		IntFloat tmp;
 		tmp.dw = state.readMem(calcEa(state), 8);
 
-		state.setFloat(rd_, tmp.d);
+		state.setDouble(rd_, tmp.d);
 		state.incPc(2);
 	}
 
@@ -1074,7 +1074,7 @@ public:
 	void execute(ArchState &state) const override
 	{
 		const uint64_t ea = calcEa(state);
-		state.writeMem(ea, 8, state.getFloat(rs_));
+		state.writeMem(ea, 8, state.getFpRaw(rs_));
 
 		state.incPc(2);
 	}
@@ -1113,10 +1113,9 @@ public:
 	void execute(ArchState &state) const override
 	{
 		// pull 8 bytes as-is
-		IntFloat tmp;
-		tmp.dw = state.readMem(calcEa(state), 8);
+		const uint64_t dw = state.readMem(calcEa(state), 8);
 
-		state.setFloat(rd_, tmp.d);
+		state.setFpRaw(rd_, dw);
 
 		state.incPc(2);
 	}
@@ -2842,8 +2841,7 @@ public:
 	void execute(ArchState &state) const override
 	{
 		const uint64_t base = state.getReg(rbase_);
-		const double val = state.getFloat(rsrc_);
-		state.writeMem(base + imm_, sz_, val);
+		state.writeMem(base + imm_, sz_, state.getFpRaw(rsrc_));
 		state.incPc(4);
 	}
 
@@ -2899,6 +2897,7 @@ public:
 
 	void execute(ArchState &state) const override
 	{
+		// move bit patterns
 		IntFloat tmp;
 
 		if (to_float_)
@@ -2906,13 +2905,16 @@ public:
 			// read int file
 			tmp.dw = state.getReg(r1_);
 
-			double val = 0;
 			if (dword_)
-				val = tmp.d; // double to double
+			{
+				// double to double just works
+			}
 			else
-				val = tmp.f; // float to double
-
-			state.setFloat(rd_, val);
+			{
+				// word to float
+				tmp.wa[1] = 0xffffffff; // nan box
+			}
+			state.setFpRaw(rd_, tmp.dw);
 		}
 		else // float to int
 		{
@@ -2920,7 +2922,7 @@ public:
 			if (dword_)
 			{
 				// double to dword
-				tmp.d = state.getFloat(r1_);
+				tmp.d = state.getDouble(r1_);
 				state.setReg(rd_, tmp.dw);
 			}
 			else // word
@@ -2993,20 +2995,18 @@ public:
 		const uint8_t sz = opSize();
 		const uint64_t ea = calcEa(state);
 
-		double val = 0;
 		IntFloat tmp;
 		if (sz == 8)
 		{
-			tmp.sdw = state.readMem(ea, 8);
-			val = tmp.d;
+			tmp.dw = state.readMem(ea, 8);
 		}
 		else
 		{
-			tmp.sw = state.readMem(ea, 4);
-			val = tmp.f;
+			tmp.wa[0] = state.readMem(ea, 4);
+			tmp.wa[1] = 0xffffffff; // nan box
 		}
 
-		state.setFloat(rd_, val);
+		state.setFpRaw(rd_, tmp.dw);
 		state.incPc(4);
 	}
 
@@ -3074,57 +3074,87 @@ public:
 		// TODO: rounding modes
 		if (to_float_)
 		{
-			double val = 0;
 			const uint64_t rval = state.getReg(r1_);
-			switch (int_sz_)
-			{
-			case 0: // signed word
-			{
-				const int32_t ival = rval;
-				if (dbl_)
-					val = ival;
-				else
-					val = float(ival);
-				break;
-			}
 
-			case 1: // unsigned word
+			if (dbl_)
 			{
-				const uint32_t ival = rval;
-				if (dbl_)
-					val = ival;
-				else
-					val = float(ival);
-				break;
-			}
+				double val = 0;
 
-			case 2: // signed dword
+				switch (int_sz_)
+				{
+				case 0: // signed word
+				{
+					const int32_t ival = rval; // scale down
+					val = ival;
+					break;
+				}
+
+				case 1: // unsigned word
+				{
+					const uint32_t ival = rval;
+					val = ival;
+					break;
+				}
+
+				case 2: // signed dword
+				{
+					const int64_t ival = rval;
+					val = ival;
+					break;
+				}
+
+				case 3: // unsigned dword
+				{
+					const uint64_t ival = rval;
+					val = ival;
+					break;
+				}
+				}
+
+				state.setDouble(rd_, val);
+			}
+			else // float
 			{
-				const int64_t ival = rval;
-				if (dbl_)
-					val = ival;
-				else
-					val = float(ival);
-				break;
-			}
+				float val = 0;
 
-			case 3: // unsigned dword
-			{
-				const uint64_t ival = rval;
-				if (dbl_)
+				switch (int_sz_)
+				{
+				case 0: // signed word
+				{
+					const int32_t ival = rval; // scale down
 					val = ival;
-				else
-					val = float(ival);
-				break;
-			}
-			}
+					break;
+				}
 
-			state.setFloat(rd_, val);
+				case 1: // unsigned word
+				{
+					const uint32_t ival = rval;
+					val = ival;
+					break;
+				}
+
+				case 2: // signed dword
+				{
+					const int64_t ival = rval;
+					val = ival;
+					break;
+				}
+
+				case 3: // unsigned dword
+				{
+					const uint64_t ival = rval;
+					val = ival;
+					break;
+				}
+				}
+
+				state.setFloat(rd_, val);
+			}
 		}
 		else // to int
 		{
-			const double dval = state.getFloat(r1_);
-			const float fval = dval;
+			const float fval = !dbl_ ? state.getFloat(r1_) : 0;
+			const double dval = dbl_ ? state.getDouble(r1_) : 0;
 
 			uint64_t val = 0;
 			switch (int_sz_)
@@ -3255,13 +3285,13 @@ public:
 
 	void execute(ArchState &state) const override
 	{
-		double val = 0;
-
 		if (dbl_)
 		{
-			const double v1 = state.getFloat(r1_);
+			double val = 0;
+
+			const double v1 = state.getDouble(r1_);
 			const bool v1_neg = v1 < 0;
-			const bool v2_neg = state.getFloat(r2_) < 0;
+			const bool v2_neg = state.getDouble(r2_) < 0;
 
 			val = v1;
 			bool invert = false;
@@ -3285,9 +3315,13 @@ public:
 
 			if (invert)
 				val = -val;
+
+			state.setDouble(rd_, val);
 		}
-		else
+		else // float
 		{
+			float val = 0;
+
 			const float v1 = state.getFloat(r1_);
 			const bool v1_neg = v1 < 0;
 			const bool v2_neg = state.getFloat(r2_) < 0;
@@ -3315,9 +3349,9 @@ public:
 				val = -v1;
 			else
 				val = v1;
-		}
 
-		state.setFloat(rd_, val);
+			state.setFloat(rd_, val);
+		}
 
 		state.incPc(4);
 	}
@@ -3398,12 +3432,12 @@ public:
 	void execute(ArchState &state) const override
 	{
 		// TODO: rounding modes
-		double val = 0;
 		if (dbl_)
 		{
-			const double v1 = state.getFloat(r1_);
-			const double v2 = state.getFloat(r2_);
-			const double v3 = state.getFloat(r3_);
+			double val = 0;
+			const double v1 = state.getDouble(r1_);
+			const double v2 = state.getDouble(r2_);
+			const double v3 = state.getDouble(r3_);
 			switch (op_)
 			{
 			case 0: val = v1 * v2 + v3; break; // FMADD
@@ -3411,9 +3445,11 @@ public:
 			case 2: val = -(v1 * v2) + v3; break; // FNMSUB
 			case 3: val = -(v1 * v2) - v3; break; // FNMADD
 			}
+			state.setDouble(rd_, val);
 		}
-		else
+		else // float
 		{
+			float val = 0;
 			const float v1 = state.getFloat(r1_);
 			const float v2 = state.getFloat(r2_);
 			const float v3 = state.getFloat(r3_);
@@ -3424,9 +3460,9 @@ public:
 			case 2: val = -(v1 * v2) + v3; break; // FNMSUB
 			case 3: val = -(v1 * v2) - v3; break; // FNMADD
 			}
+			state.setFloat(rd_, val);
 		}
 
-		state.setFloat(rd_, val);
 		state.incPc(4);
 	}
 
@@ -3496,11 +3532,11 @@ public:
 
 	void execute(ArchState &state) const override
 	{
-		double val = 0;
 		if (dbl_)
 		{
-			const double v1 = state.getFloat(r1_);
-			const double v2 = state.getFloat(r2_);
+			double val = 0;
+			const double v1 = state.getDouble(r1_);
+			const double v2 = state.getDouble(r2_);
 			switch (alu_)
 			{
 			case 0: val = v1 + v2; break;
@@ -3511,9 +3547,11 @@ public:
 					val = v1 / v2;
 				break;
 			}
+			state.setDouble(rd_, val);
 		}
-		else
+		else // float
 		{
+			float val = 0;
 			const float v1 = state.getFloat(r1_);
 			const float v2 = state.getFloat(r2_);
 			switch (alu_)
@@ -3526,9 +3564,9 @@ public:
 					val = v1 / v2;
 				break;
 			}
+			state.setFloat(rd_, val);
 		}
 
-		state.setFloat(rd_, val);
 		state.incPc(4);
 	}
 
@@ -3597,8 +3635,8 @@ public:
 
 		if (dbl_)
 		{
-			const double v1 = state.getFloat(r1_);
-			const double v2 = state.getFloat(r2_);
+			const double v1 = state.getDouble(r1_);
+			const double v2 = state.getDouble(r2_);
 
 			switch (op_)
 			{
@@ -3787,25 +3825,29 @@ public:
 
 	void execute(ArchState &state) const override
 	{
-		const double rval = state.getFloat(r1_);
-
-		double val = 0;
-		if (rval < 0)
+		if (dbl_)
 		{
-			if (dbl_)
+			const double rval = state.getDouble(r1_);
+			double val = 0;
+			if (rval < 0)
 				val = nan("");
 			else
-				val = nanf("");
-		}
-		else
-		{
-			if (dbl_)
 				val = sqrt(rval);
+
+			state.setDouble(rd_, val);
+		}
+		else // float
+		{
+			const float rval = state.getFloat(r1_);
+			float val = 0;
+			if (rval < 0)
+				val = nanf("");
 			else
-				val = sqrtf(float(rval));
+				val = sqrtf(rval);
+
+			state.setFloat(rd_, val);
 		}
 
-		state.setFloat(rd_, val);
 		state.incPc(4);
 	}
 
@@ -3887,10 +3929,14 @@ public:
 	{
 		// TODO: rounding modes
 
-		// either way, a double gets shortened (either on in or out)
-		const double dval = state.getFloat(r1_);
-		const float fval = dval;
-		state.setFloat(rd_, fval);
+		if (dbl_) // double gets float
+		{
+			state.setDouble(rd_, state.getFloat(r1_));
+		}
+		else // float gets double
+		{
+			state.setFloat(rd_, state.getDouble(r1_));
+		}
 
 		state.incPc(4);
 	}

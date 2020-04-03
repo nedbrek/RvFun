@@ -36,16 +36,18 @@ public:
 			std::cout << " setReg " << num << ' ' << val << ' ';
 	}
 
-	double getFloat(uint32_t num) const override
-	{
-		return freg[num];
-	}
+	float getFloat(uint32_t num) const override;
 
-	void setFloat(uint32_t num, double val) override
+	void setFloat(uint32_t num, float val) override;
+
+	double getDouble(uint32_t num) const override;
+
+	void setDouble(uint32_t num, double val) override;
+
+	uint64_t getFpRaw(uint32_t num) const override { return freg[num]; }
+	void setFpRaw(uint32_t num, uint64_t val) override
 	{
 		freg[num] = val;
-		if (debug_)
-			std::cout << " setFloat " << num << ' ' << val << ' ';
 	}
 
 	uint64_t getCr(uint32_t num) const override;
@@ -81,7 +83,7 @@ private: // data
 	static constexpr uint32_t NUM_REGS = 32;
 	uint64_t pc_ = 0;
 	uint64_t ireg[NUM_REGS] = {0,};
-	double freg[NUM_REGS] = {0,};
+	uint64_t freg[NUM_REGS] = {0,}; // store raw bits for NAN boxing
 	std::map<uint16_t, uint64_t> cregs_;
 	ArchMem *mem_ = nullptr;
 	System *sys_ = nullptr;
