@@ -226,7 +226,10 @@ void HostSystem::completeEnv(ArchState &state)
 			fds_.push_back(-1); // block access to stdin
 		}
 		else
+		{
+			std::cerr << "Using stdin " << stdin_file_ << std::endl;
 			fds_.push_back(sim_stdin);
+		}
 	}
 
 	// remap stdout
