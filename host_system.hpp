@@ -32,6 +32,7 @@ public:
 	void open(ArchState &state) override;
 	void readlinkat(ArchState &state) override;
 	void sbrk(ArchState &state) override;
+	void seek(ArchState &state) override;
 	void uname(ArchState &state) override;
 	void read(ArchState &state) override;
 	void write(ArchState &state) override;

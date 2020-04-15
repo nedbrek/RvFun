@@ -2089,6 +2089,10 @@ public:
 			state.setReg(10, 0); // TODO
 			break;
 
+		case 62: // lseek
+			state.getSys()->seek(state);
+			break;
+
 		case 63: // read
 			state.getSys()->read(state);
 			break;

@@ -507,6 +507,20 @@ void HostSystem::sbrk(ArchState &state)
 	state.setReg(10, top_of_mem_);
 }
 
+void HostSystem::seek(ArchState &state)
+{
+	const uint64_t fd = state.getReg(10);
+	const uint64_t off = state.getReg(11);
+	const uint64_t wh = state.getReg(12);
+	if (fd <= 2 || fd >= fds_.size())
+	{
+		state.setReg(10, -1);
+		return;
+	}
+	const uint64_t ret = ::lseek(fds_[fd], off, wh);
+	state.setReg(10, ret);
+}
+
 void HostSystem::uname(ArchState &state)
 {
 	const uint64_t buf = state.getReg(10);
