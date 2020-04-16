@@ -420,7 +420,12 @@ void HostSystem::open(ArchState &state)
 		pathname = os.str();
 		std::cerr << " openat write file " << pathname << std::endl;
 	}
-	const uint32_t new_fd = ::open(pathname.c_str(), host_flags, 0666);
+	const int32_t new_fd = ::open(pathname.c_str(), host_flags, 0666);
+	if (new_fd < 0)
+	{
+		state.setReg(10, int64_t(new_fd));
+		return;
+	}
 
 	const uint32_t sim_fd = fds_.size();
 	fds_.emplace_back(new_fd);
