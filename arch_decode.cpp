@@ -3157,8 +3157,20 @@ public:
 		}
 		else // to int
 		{
-			const float fval = !dbl_ ? state.getFloat(r1_) : 0;
-			const double dval = dbl_ ? state.getDouble(r1_) : 0;
+			float fval = !dbl_ ? state.getFloat(r1_) : 0;
+			double dval = dbl_ ? state.getDouble(r1_) : 0;
+
+			// we get round to zero for free
+			if (round_ == 2) // round down
+			{
+				fval -= 0.5;
+				dval -= 0.5;
+			}
+			else if (round_ == 3) // round up
+			{
+				fval += 0.5;
+				dval += 0.5;
+			}
 
 			uint64_t val = 0;
 			switch (int_sz_)
