@@ -130,14 +130,14 @@ uint64_t SimpleArchState::readMem(uint64_t va, uint32_t sz) const
 {
 	const uint64_t val = mem_->readMem(va, sz);
 	if (debug_)
-		std::cout << " readMem " << va << ' ' << sz << ' ' << val;
+		std::cout << " readMem " << std::hex << va << ' ' << sz << ' ' << val << std::dec;
 	return val;
 }
 
 void SimpleArchState::writeMem(uint64_t va, uint32_t sz, uint64_t val)
 {
 	if (debug_)
-		std::cout << " writeMem " << va << ' ' << sz << ' ' << val;
+		std::cout << " writeMem " << std::hex << va << ' ' << sz << ' ' << val << std::dec;
 	mem_->writeMem(va, sz, val);
 }
 

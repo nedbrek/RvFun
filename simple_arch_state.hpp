@@ -33,7 +33,7 @@ public:
 
 		ireg[num] = val;
 		if (debug_)
-			std::cout << " setReg " << num << ' ' << val << ' ';
+			std::cout << " setReg " << num << ' ' << std::hex << val << std::dec << ' ';
 	}
 
 	float getFloat(uint32_t num) const override;

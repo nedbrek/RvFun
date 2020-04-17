@@ -16,12 +16,12 @@ struct SparseMem::MemBlock
 	{
 		if (data)
 		{
-			mem = reinterpret_cast<uint8_t*>(malloc(sz));
+			mem = static_cast<uint8_t*>(malloc(sz));
 			memcpy(mem, data, sz);
 		}
 		else
 		{
-			mem = reinterpret_cast<uint8_t*>(calloc(sz, 1));
+			mem = static_cast<uint8_t*>(calloc(sz, 1));
 		}
 	}
 
