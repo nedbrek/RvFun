@@ -55,6 +55,14 @@ void SparseMem::addBlock(uint64_t va, uint32_t sz, const void *data)
 			for (uint32_t a = b->sz; a < sz; ++a)
 				b->mem[a] = 0;
 
+			if (data)
+			{
+				// copy in new data
+				const uint8_t *bdata = static_cast<const uint8_t*>(data);
+				for (uint32_t i = 0; i < sz; ++i)
+					b->mem[va - b->va + i] = bdata[i];
+			}
+
 			// update block size
 			b->sz = sz;
 
