@@ -3976,6 +3976,67 @@ private:
 	uint8_t rd_;
 };
 
+/// Shift Right Word (SR[AL]W)
+class Sralw : public Inst
+{
+public:
+	Sralw(uint8_t r2, uint8_t r1, uint8_t rd, bool op30)
+	: r2_(r2)
+	, r1_(r1)
+	, rd_(rd)
+	, op30_(op30)
+	{
+	}
+
+	// rd = r1 op imm
+	std::vector<RegDep> dsts() const override { return {RegNum(rd_)}; }
+	std::vector<RegDep> srcs() const override { return {RegNum(r1_), RegNum(r2_)}; }
+
+	uint32_t opSize() const override { return 4; }
+
+	void execute(ArchState &state) const override
+	{
+		const uint32_t sft = state.getReg(r2_) & 0x1f; // r2[4:0]
+		int32_t tmp = 0;
+		if (op30_) // arithmetic
+		{
+			const int32_t r1 = state.getReg(r1_);
+			tmp = r1 >> sft;
+		}
+		else // logical
+		{
+			const uint32_t r1 = state.getReg(r1_);
+			tmp = r1 >> sft;
+		}
+
+		// sign-extend
+		const int64_t svrd = int32_t(tmp);
+		state.setReg(rd_, svrd);
+		state.incPc(4);
+	}
+
+	std::string disasm() const override
+	{
+		std::ostringstream os;
+		std::ostringstream mne;
+		mne << "SR";
+		mne << (op30_ ? 'A' : 'L');
+		mne << 'W';
+
+		os << std::left << std::setw(MNE_WIDTH) << mne.str() << ' ';
+		printReg(os, rd_) << " = r" << uint32_t(r1_) << " >> r" << uint32_t(r2_);
+		return os.str();
+	}
+
+	OpType opType() const override { return OT_SHIFT; }
+
+private:
+	uint8_t r2_;
+	uint8_t r1_;
+	uint8_t rd_;
+	bool op30_;
+};
+
 Inst* decode32(uint32_t opc)
 {
 	// opc[1:0] == 2'b11
@@ -4131,7 +4192,7 @@ Inst* decode32(uint32_t opc)
 		}
 		if (op == 5) // SR(AL)W
 		{
-			return nullptr; // TODO
+			return new Sralw(r2, r1, rd, op30);
 		}
 
 		return nullptr; // TODO
