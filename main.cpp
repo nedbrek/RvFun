@@ -80,7 +80,13 @@ int main(int argc, char **argv)
 	{
 		if (host.hadExit())
 		{
-			std::cout << "Program exited." << std::endl;
+			std::cout << "Program exited after " << icount << " instructions." << std::endl;
+			break;
+		}
+		const uint64_t pc = state.getPc();
+		if ((pc & -63ll) == 0)
+		{
+			std::cout << "Program returned to shell after " << icount << " instructions." << std::endl;
 			break;
 		}
 

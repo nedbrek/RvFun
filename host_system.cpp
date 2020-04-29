@@ -194,8 +194,12 @@ void HostSystem::completeEnv(ArchState &state)
 
 	const uint64_t final_sp = sp + stack_sz/2;
 
+	//--- return canary
+	ptr = final_sp - 8;
+	state.writeMem(ptr, 8, 0);
+	ptr += 8;
+
 	// write args to stack
-	ptr = final_sp;
 	//--- argc
 	state.writeMem(ptr, 8, sim_argc);
 	ptr += 8;
