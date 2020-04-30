@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <limits>
 
 namespace
 {
@@ -3163,13 +3164,13 @@ public:
 			// we get round to zero for free
 			if (round_ == 2) // round down
 			{
-				fval -= 0.5;
-				dval -= 0.5;
+				fval = floorf(fval);
+				dval = floor(dval);
 			}
 			else if (round_ == 3) // round up
 			{
-				fval += 0.5;
-				dval += 0.5;
+				fval = ceilf(fval);
+				dval = ceil(dval);
 			}
 
 			uint64_t val = 0;
@@ -3179,9 +3180,19 @@ public:
 			{
 				int32_t tmp = 0;
 				if (dbl_)
-					tmp = dval;
+				{
+					if (std::isnan(dval))
+						tmp = std::numeric_limits<int32_t>::max();
+					else
+						tmp = dval;
+				}
 				else
-					tmp = fval;
+				{
+					if (isnanf(fval))
+						tmp = std::numeric_limits<int32_t>::max();
+					else
+						tmp = fval;
+				}
 
 				// sign-extend
 				val = int64_t(tmp);
@@ -3192,9 +3203,19 @@ public:
 			{
 				uint32_t tmp = 0;
 				if (dbl_)
-					tmp = dval;
+				{
+					if (std::isnan(dval))
+						tmp = std::numeric_limits<uint32_t>::max();
+					else
+						tmp = dval;
+				}
 				else
-					tmp = fval;
+				{
+					if (isnanf(fval))
+						tmp = std::numeric_limits<uint32_t>::max();
+					else
+						tmp = fval;
+				}
 
 				// still need to sign-extend
 				val = int64_t(int32_t(tmp));
@@ -3205,9 +3226,20 @@ public:
 			{
 				int64_t tmp = 0;
 				if (dbl_)
-					tmp = dval;
+				{
+					if (std::isnan(dval))
+						tmp = std::numeric_limits<int64_t>::max();
+					else
+						tmp = dval;
+				}
 				else
-					tmp = fval;
+				{
+					if (isnanf(fval))
+						tmp = std::numeric_limits<int64_t>::max();
+					else
+						tmp = fval;
+				}
+
 				val = tmp;
 				break;
 			}
@@ -3215,9 +3247,19 @@ public:
 			case 3: // unsigned dword
 			{
 				if (dbl_)
-					val = dval;
+				{
+					if (std::isnan(dval))
+						val = std::numeric_limits<uint64_t>::max();
+					else
+						val = dval;
+				}
 				else
-					val = fval;
+				{
+					if (isnanf(fval))
+						val = std::numeric_limits<uint64_t>::max();
+					else
+						val = fval;
+				}
 				break;
 			}
 			}
