@@ -2741,30 +2741,66 @@ public:
 
 		uint64_t val = 0; // value to store back
 
-		// TODO: word versions need to sign extend to register
-		switch (o31_27_)
+		if (dword_)
 		{
-		case 0: val = init_val + vr2; break; // ADD
-		case 1: val = vr2; break; // SWAP
-		//case 2: // LR
-		//case 3: // SC
-		case 4: val = init_val ^ vr2; break; // XOR
-		// 5..7 rsvd
-		case 8: val = init_val | vr2; break; // OR
-		// 9..1 rsvd
-		case 12: val = init_val & vr2; break; // AND
-		// 13..15 rsvd
-		case 16: val = std::min(int64_t(init_val), int64_t(vr2)); break; // MIN
-		// 17..19 rsvd
-		case 20: val = std::max(int64_t(init_val), int64_t(vr2)); break; // MAX
-		// 21..23 rsvd
-		case 24: val = std::min(init_val, vr2); break; // MINU
-		// 25..27 rsvd
-		case 28: val = std::max(init_val, vr2); break; // MAXU
-		// 29..31 rsvd
+			switch (o31_27_)
+			{
+			case 0: val = init_val + vr2; break; // ADD
+			case 1: val = vr2; break; // SWAP
+			//case 2: // LR
+			//case 3: // SC
+			case 4: val = init_val ^ vr2; break; // XOR
+			// 5..7 rsvd
+			case 8: val = init_val | vr2; break; // OR
+			// 9..1 rsvd
+			case 12: val = init_val & vr2; break; // AND
+			// 13..15 rsvd
+			case 16: val = std::min(int64_t(init_val), int64_t(vr2)); break; // MIN
+			// 17..19 rsvd
+			case 20: val = std::max(int64_t(init_val), int64_t(vr2)); break; // MAX
+			// 21..23 rsvd
+			case 24: val = std::min(init_val, vr2); break; // MINU
+			// 25..27 rsvd
+			case 28: val = std::max(init_val, vr2); break; // MAXU
+			// 29..31 rsvd
+			}
+
+			state.setReg(rd_, init_val);
+		}
+		else
+		{
+			const int32_t init_valw = init_val;
+			const int32_t vr2w = vr2;
+
+			int32_t valw = 0;
+			switch (o31_27_)
+			{
+			case 0: valw = init_valw + vr2w; break; // ADD
+			case 1: valw = vr2w; break; // SWAP
+			//case 2: // LR
+			//case 3: // SC
+			case 4: valw = init_valw ^ vr2w; break; // XOR
+			// 5..7 rsvd
+			case 8: valw = init_valw | vr2w; break; // OR
+			// 9..1 rsvd
+			case 12: valw = init_valw & vr2w; break; // AND
+			// 13..15 rsvd
+			case 16: valw = std::min(init_valw, vr2w); break; // MIN
+			// 17..19 rsvd
+			case 20: valw = std::max(init_valw, vr2w); break; // MAX
+			// 21..23 rsvd
+			case 24: valw = std::min(init_valw, vr2w); break; // MINU
+			// 25..27 rsvd
+			case 28: valw = std::max(init_valw, vr2w); break; // MAXU
+			// 29..31 rsvd
+			}
+
+			// sign-extend
+			val = int64_t(valw);
+
+			state.setReg(rd_, int64_t(init_valw));
 		}
 
-		state.setReg(rd_, init_val);
 		state.writeMem(ea, sz, val);
 
 		state.incPc(4);
