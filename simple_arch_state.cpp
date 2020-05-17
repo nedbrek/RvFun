@@ -1,5 +1,6 @@
 #include "simple_arch_state.hpp"
 #include "arch_mem.hpp"
+#include <cmath>
 
 namespace
 {
@@ -30,6 +31,8 @@ float SimpleArchState::getFloat(uint32_t num) const
 {
 	IntFloat tmp;
 	tmp.dw = freg[num];
+	if (tmp.wa[1] != uint32_t(-1))
+		return nanf("");
 	return tmp.f;
 }
 
