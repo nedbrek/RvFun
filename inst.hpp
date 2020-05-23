@@ -71,7 +71,8 @@ public:
 		OT_LOAD_FP,
 		OT_STORE_FP,
 		OT_ATOMIC,
-		OT_BRANCH,
+		OT_BCC, ///< conditional branch
+		OT_BRANCH, ///< unconditional branch
 		OT_SYSTEM
 	};
 	virtual OpType opType() const = 0;

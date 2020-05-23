@@ -638,7 +638,7 @@ public:
 		return os.str();
 	}
 
-	OpType opType() const override { return OT_BRANCH; }
+	OpType opType() const override { return OT_BCC; }
 
 private:
 	bool eq_;
@@ -1770,7 +1770,7 @@ public:
 		return os.str();
 	}
 
-	OpType opType() const override { return OT_BRANCH; }
+	OpType opType() const override { return OT_BCC; }
 
 private:
 	int64_t imm_;
