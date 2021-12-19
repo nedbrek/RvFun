@@ -34,3 +34,6 @@ $(LIB): $(OBJS)
 driver.exe: main.o $(LIB)
 	@$(CXX) -g -o $@ $^ -Wl,-rpath='$${ORIGIN}'
 
+dfg.exe: dfg.o $(LIB)
+	@$(CXX) -g -o $@ $^ -Wl,-rpath='$${ORIGIN}'
+
