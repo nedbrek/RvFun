@@ -6,6 +6,43 @@
 #include <string>
 #include <sstream>
 
+class DotPrinter
+{
+public:
+	~DotPrinter()
+	{
+		if (do_print_)
+			f_ << '}' << std::endl;
+	}
+
+	void setPrint() { do_print_ = true; }
+
+	void start()
+	{
+		if (do_print_)
+		{
+			f_.open("dfg.dot");
+			f_ << "strict digraph {" << std::endl;
+		}
+	}
+
+	void print(uint32_t node)
+	{
+		if (do_print_)
+			f_ << node << std::endl;
+	}
+
+	void printEdge(uint32_t p, uint32_t c)
+	{
+		if (do_print_)
+			f_ << p << " -> " << c << std::endl;
+	}
+
+private:
+	std::ofstream f_;
+	bool do_print_ = false;
+};
+
 int main(int argc, char **argv)
 {
 	if (argc == 1)
@@ -14,14 +51,19 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	DotPrinter dp;
 	const char *op_file = nullptr;
-	const char *optstring = "+f:";
+	const char *optstring = "+f:p";
 	int optc = getopt_long(argc, argv, optstring, nullptr, nullptr);
 	while (optc != -1)
 	{
 		if (optc == 'f')
 		{
 			op_file = optarg;
+		}
+		else if (optc == 'p')
+		{
+			dp.setPrint();
 		}
 		optc = getopt_long(argc, argv, optstring, nullptr, nullptr);
 	}
@@ -35,6 +77,7 @@ int main(int argc, char **argv)
 
 	// open the file
 	std::fstream ifile(op_file);
+	dp.start();
 
 	std::map<uint32_t, uint32_t> prod_int;
 	std::map<uint32_t, uint32_t> prod_fp;
@@ -97,9 +140,11 @@ int main(int argc, char **argv)
 				else       std::cout << ',';
 				std::cout << srci;
 				first = false;
+				dp.printEdge(srci, icount);
 			}
 		}
 		if (!first) std::cout << ']';
+		else dp.print(icount);
 		std::cout << std::endl;
 
 		// update dests with this instruction as producer

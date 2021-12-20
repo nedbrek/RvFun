@@ -37,3 +37,7 @@ driver.exe: main.o $(LIB)
 dfg.exe: dfg.o $(LIB)
 	@$(CXX) -g -o $@ $^ -Wl,-rpath='$${ORIGIN}'
 
+run_dfg: dfg.exe
+	./dfg.exe -f test.code.txt -p
+	dot -Tsvg dfg.dot > dfg.svg
+
