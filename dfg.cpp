@@ -26,10 +26,12 @@ public:
 		}
 	}
 
-	void print(uint32_t node)
+	void print(uint32_t node, const std::string &label)
 	{
 		if (do_print_)
-			f_ << node << std::endl;
+		{
+			f_ << node << " [label =\"" << label << "\"]" << std::endl;
+		}
 	}
 
 	void printEdge(uint32_t p, uint32_t c)
@@ -115,7 +117,11 @@ int main(int argc, char **argv)
 		//else
 		std::cout << icount << '\t';
 		if (!is_compressed) std::cout << ' ' << ' ';
-		std::cout << inst->disasm();
+		const std::string disasm = inst->disasm();
+		std::ostringstream los;
+		los << icount << ' ' << disasm;
+		std::string label(los.str());
+		std::cout << disasm;
 
 		// pull producers for sources
 		bool first = true;
@@ -136,15 +142,22 @@ int main(int argc, char **argv)
 
 			if (srci != 0)
 			{
-				if (first) std::cout << '\t' << '[';
-				else       std::cout << ',';
+				if (first)
+				{
+					dp.print(icount, label);
+					std::cout << '\t' << '[';
+				}
+				else
+				{
+					std::cout << ',';
+				}
 				std::cout << srci;
 				first = false;
 				dp.printEdge(srci, icount);
 			}
 		}
 		if (!first) std::cout << ']';
-		else dp.print(icount);
+		else dp.print(icount, label);
 		std::cout << std::endl;
 
 		// update dests with this instruction as producer
