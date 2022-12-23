@@ -49,7 +49,8 @@ int main(int argc, char **argv)
 {
 	if (argc == 1)
 	{
-		std::cerr << "Usage: " << argv[0] << " [-f opcode_file] [elf_file]" << std::endl;
+		std::cerr << "Usage: " << argv[0] << " [-p] [-f opcode_file] [elf_file]" << std::endl;
+		std::cerr << "-p to print the dataflow graph to dfg.dot" << std::endl;
 		return 1;
 	}
 
