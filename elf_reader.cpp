@@ -87,6 +87,16 @@ int main(int argc, char **argv)
 	std::cout << "Found " << num_headers << " headers." << std::endl;
 
 	// dump the header info
+	std::cout << "     "
+		 << " Type "
+		 << "  Offset "
+		 << "   VAddr "
+		 << "   PAddr "
+		 << "   Align "
+		 << "  FileSz "
+		 << "   MemSz "
+		 << "   Flags"
+		 << std::endl;
 	Elf64_Phdr *hdrs = elf64_getphdr(e_hnd); // array of headers
 	for (size_t i = 0; i < num_headers; ++i)
 	{
